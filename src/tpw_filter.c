@@ -182,12 +182,14 @@ void tpw_filter_destroy(tpw_filter_h handle)
 
     /* The ports themselves are owned by pw_filter and freed by
      * pw_filter_destroy() inside tpw_filter_teardown(); only the extra
-     * heap allocation for each port's push-staging buffer is ours, so it
-     * must be freed before teardown while the port structs are still
-     * valid. */
+     * heap allocations for each port's push-staging buffer/events are
+     * ours, so they must be freed before teardown while the port
+     * structs are still valid. */
     for (size_t i = 0; i < filter->n_ports; i++) {
-        if (filter->ports[i])
+        if (filter->ports[i]) {
             free(filter->ports[i]->pushed_data);
+            tpw_filter_event_free_port(filter->ports[i]);
+        }
     }
     free(filter->ports);
 

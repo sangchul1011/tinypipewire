@@ -2,6 +2,8 @@
 
 #include <string.h>
 
+#include <spa/param/audio/dsp-utils.h>
+
 #include "tpw_spa_format_internal.h"
 
 const struct spa_pod* tpw_spa_build_audio_format(struct spa_pod_builder* b, const tpw_audio_config* config)
@@ -57,5 +59,21 @@ const struct spa_pod* tpw_spa_build_video_format(struct spa_pod_builder* b, cons
         spa_pod_builder_add(b, SPA_FORMAT_VIDEO_framerate,
             SPA_POD_CHOICE_RANGE_Fraction(&fr_def, &fr_min, &fr_max), 0);
     }
+    return spa_pod_builder_pop(b, &f);
+}
+
+const struct spa_pod* tpw_spa_build_signal_format(struct spa_pod_builder* b)
+{
+    struct spa_audio_info_dsp info = { .format = SPA_AUDIO_FORMAT_DSP_F32 };
+    return spa_format_audio_dsp_build(b, SPA_PARAM_EnumFormat, &info);
+}
+
+const struct spa_pod* tpw_spa_build_event_format(struct spa_pod_builder* b)
+{
+    struct spa_pod_frame f;
+    spa_pod_builder_push_object(b, &f, SPA_TYPE_OBJECT_Format, SPA_PARAM_EnumFormat);
+    spa_pod_builder_add(b,
+        SPA_FORMAT_mediaType,    SPA_POD_Id(SPA_MEDIA_TYPE_application),
+        SPA_FORMAT_mediaSubtype, SPA_POD_Id(SPA_MEDIA_SUBTYPE_control), 0);
     return spa_pod_builder_pop(b, &f);
 }

@@ -38,6 +38,35 @@ void tpw_filter_on_process(void* data, struct spa_io_position* position)
         buffers[i].capacity = 0;
         dequeued[i] = NULL;
 
+        if (port->media_type == TPW_STREAM_TYPE_EVENT) {
+            if (port->direction == TPW_FILTER_PORT_INPUT) {
+                if (port->n_pending_events > 0) {
+                    /* Application-pushed events take priority over the
+                     * graph this cycle, same as pushed_data above. */
+                    tpw_filter_event_load_pending_as_incoming(port);
+                } else {
+                    struct pw_buffer* b = pw_filter_dequeue_buffer(port);
+                    if (b && b->buffer->datas[0].data) {
+                        struct spa_data* d = &b->buffer->datas[0];
+                        tpw_filter_event_decode(port, d->data, d->chunk ? d->chunk->size : 0);
+                        dequeued[i] = b;
+                    } else {
+                        port->n_incoming_events = 0;
+                    }
+                }
+            } else {
+                port->n_pending_events = 0;
+                struct pw_buffer* b = pw_filter_dequeue_buffer(port);
+                if (b && b->buffer->datas[0].data) {
+                    port->event_output_capacity = b->buffer->datas[0].maxsize;
+                    dequeued[i] = b;
+                } else {
+                    port->event_output_capacity = 0;
+                }
+            }
+            continue;
+        }
+
         if (port->direction == TPW_FILTER_PORT_INPUT) {
             if (port->pushed_data) {
                 /* Application-pushed data takes priority over the graph
@@ -69,6 +98,25 @@ void tpw_filter_on_process(void* data, struct spa_io_position* position)
 
     for (size_t i = 0; i < filter->n_ports; i++) {
         struct tpw_filter_port* port = filter->ports[i];
+
+        if (port->media_type == TPW_STREAM_TYPE_EVENT) {
+            if (port->direction == TPW_FILTER_PORT_INPUT) {
+                tpw_filter_event_clear_pending(port);
+            } else if (dequeued[i]) {
+                struct spa_data* d = &dequeued[i]->buffer->datas[0];
+                size_t encoded = tpw_filter_event_finish_output(port, d->data, d->maxsize);
+                if (d->chunk) {
+                    d->chunk->size = (uint32_t)encoded;
+                    d->chunk->offset = 0;
+                    d->chunk->stride = 0;
+                }
+            } else {
+                tpw_filter_event_clear_pending(port);
+            }
+            if (dequeued[i])
+                pw_filter_queue_buffer(port, dequeued[i]);
+            continue;
+        }
 
         if (port->direction == TPW_FILTER_PORT_INPUT && port->pushed_data && !dequeued[i]) {
             free(port->pushed_data);
