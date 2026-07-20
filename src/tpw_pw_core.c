@@ -3,6 +3,7 @@
 #include <pthread.h>
 #include <time.h>
 
+#include "tpw_log_internal.h"
 #include "tpw_pw_core_internal.h"
 
 /* How long tpw_pw_core_connect() waits for PipeWire to confirm the
@@ -59,23 +60,29 @@ static const struct pw_core_events tpw_pw_core_events = {
 int tpw_pw_core_connect(struct tpw_pw_core_conn* conn, const char* loop_name)
 {
     conn->loop = pw_thread_loop_new(loop_name, NULL);
-    if (!conn->loop)
+    if (!conn->loop) {
+        tpw_log_error("'%s': failed to create thread loop", loop_name);
         return -1;
+    }
 
-    if (pw_thread_loop_start(conn->loop) < 0)
+    if (pw_thread_loop_start(conn->loop) < 0) {
+        tpw_log_error("'%s': failed to start thread loop", loop_name);
         return -1;
+    }
 
     pw_thread_loop_lock(conn->loop);
 
     conn->context = pw_context_new(pw_thread_loop_get_loop(conn->loop), NULL, 0);
     if (!conn->context) {
         pw_thread_loop_unlock(conn->loop);
+        tpw_log_error("'%s': failed to create pipewire context", loop_name);
         return -1;
     }
 
     conn->core = pw_context_connect(conn->context, NULL, 0);
     if (!conn->core) {
         pw_thread_loop_unlock(conn->loop);
+        tpw_log_error("'%s': failed to connect to pipewire core", loop_name);
         return -1;
     }
 
@@ -96,6 +103,9 @@ int tpw_pw_core_connect(struct tpw_pw_core_conn* conn, const char* loop_name)
 
     spa_hook_remove(&conn->core_listener);
     pw_thread_loop_unlock(conn->loop);
+
+    if (conn->connect_result < 0)
+        tpw_log_error("'%s': pipewire core sync failed or timed out (result=%d)", loop_name, conn->connect_result);
 
     return conn->connect_result;
 }

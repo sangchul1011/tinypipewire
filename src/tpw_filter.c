@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "tpw_filter_internal.h"
+#include "tpw_log_internal.h"
 
 void tpw_filter_on_param_changed(void* data, void* port_data, uint32_t id, const struct spa_pod* param)
 {
@@ -14,6 +15,8 @@ void tpw_filter_on_param_changed(void* data, void* port_data, uint32_t id, const
      * whatever was feeding it is gone; other ports are unaffected. */
     if (id != SPA_PARAM_Format || param != NULL || !port)
         return;
+
+    tpw_log_warning("filter '%s': a port's source became unavailable", filter->name ? filter->name : "tpw-filter");
 
     if (filter->error_cb)
         filter->error_cb((tpw_filter_h)filter, (tpw_filter_port_h)port, TPW_STREAM_ERR_SOURCE_UNAVAILABLE,
@@ -101,6 +104,7 @@ tpw_filter_h tpw_filter_create(const char* name, tpw_filter_process_cb callback,
         pw_filter_new(filter->conn.core, filter->name ? filter->name : "tpw-filter", props);
     if (!filter->pw_filter) {
         pw_thread_loop_unlock(filter->conn.loop);
+        tpw_log_error("filter '%s': failed to create pipewire filter", filter->name ? filter->name : "tpw-filter");
         tpw_filter_teardown(filter);
         free(filter->name);
         free(filter);
@@ -139,6 +143,7 @@ int tpw_filter_start(tpw_filter_h handle)
         int res = pw_filter_connect(filter->pw_filter, PW_FILTER_FLAG_RT_PROCESS, NULL, 0);
         if (res < 0) {
             pw_thread_loop_unlock(filter->conn.loop);
+            tpw_log_error("filter '%s': failed to connect (result=%d)", filter->name ? filter->name : "tpw-filter", res);
             return TPW_STREAM_ERR_CONNECT_FAILED;
         }
     } else {

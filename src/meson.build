@@ -1,4 +1,5 @@
 tinypipewire_sources = files(
+  'tpw_log.c',
   'tpw_pw_core.c',
   'tpw_spa_format.c',
   'tpw_stream.c',
