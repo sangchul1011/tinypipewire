@@ -3,6 +3,10 @@ unit_tests = [
   'test_audio_format',
   'test_video_format',
   'test_error_notification',
+  'test_filter_ports',
+  'test_filter_process',
+  'test_filter_error_notification',
+  'test_filter_push_data',
 ]
 
 # test_error_notification.c is a whitebox test: it reaches into
