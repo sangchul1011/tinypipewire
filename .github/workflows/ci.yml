@@ -34,6 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     permissions:
+      contents: read
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
@@ -56,16 +57,14 @@ jobs:
 
           if [ "${{ steps.api_diff.outputs.changed }}" = "true" ]; then
             body="$marker
-          ### Public API signature change detected
+          ### ⚠️ Public API signature change detected
 
           $(cat /tmp/api-diff-summary.md)
 
           This is a heads-up only; it does not block merging."
-          elif [ -n "$existing_id" ]; then
-            body="$marker
-          ### Public API signature change no longer detected"
           else
-            exit 0
+            body="$marker
+          ### ✅ No public API signature changes detected"
           fi
 
           if [ -n "$existing_id" ]; then
