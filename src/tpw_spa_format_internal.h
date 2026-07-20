@@ -23,4 +23,13 @@ enum spa_video_format tpw_spa_lookup_pixel_format(const char* name);
 const struct spa_pod* tpw_spa_build_video_format(struct spa_pod_builder* b, const tpw_video_config* config,
                                                   enum spa_video_format fmt);
 
+/* Builds the SPA_TYPE_OBJECT_Format POD for a filter signal port using
+ * `b`: audio/dsp media type fixed to 32-bit float, no per-instance
+ * fields since there is nothing left for a caller to configure. */
+const struct spa_pod* tpw_spa_build_signal_format(struct spa_pod_builder* b);
+
+/* Builds the SPA_TYPE_OBJECT_Format POD for a filter event port using
+ * `b`: application/control media type, no per-instance fields. */
+const struct spa_pod* tpw_spa_build_event_format(struct spa_pod_builder* b);
+
 #endif /* TPW_SPA_FORMAT_INTERNAL_H */

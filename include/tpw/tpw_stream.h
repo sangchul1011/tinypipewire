@@ -12,10 +12,14 @@ extern "C" {
 /* Opaque handle to one audio- or video-capture stream. */
 typedef struct tpw_stream* tpw_stream_h;
 
-/* Classifies a stream as an audio or camera capture session. */
+/* Classifies a stream, or a tpw_filter_* port, by the kind of media it
+ * carries. SIGNAL and EVENT are filter-port-only: tpw_stream_create()
+ * only accepts AUDIO/VIDEO and rejects the other two. */
 typedef enum {
     TPW_STREAM_TYPE_AUDIO,
-    TPW_STREAM_TYPE_VIDEO
+    TPW_STREAM_TYPE_VIDEO,
+    TPW_STREAM_TYPE_SIGNAL, /* filter ports only, see tpw_filter.h */
+    TPW_STREAM_TYPE_EVENT   /* filter ports only, see tpw_filter.h */
 } tpw_stream_type;
 
 /* Library error codes. Negative values only; 0 is success. */

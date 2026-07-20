@@ -20,6 +20,12 @@ static void* tpw_filter_add_port_common(struct tpw_filter* filter, tpw_filter_po
     return port_data;
 }
 
+tpw_stream_type tpw_filter_port_get_type(tpw_filter_port_h port_handle)
+{
+    struct tpw_filter_port* port = (struct tpw_filter_port*)port_handle;
+    return port ? port->media_type : TPW_STREAM_TYPE_AUDIO;
+}
+
 tpw_filter_port_h tpw_filter_add_audio_port(tpw_filter_h handle, tpw_filter_port_direction direction,
                                              const tpw_audio_config* config)
 {
@@ -57,6 +63,8 @@ int tpw_filter_push_port_data(tpw_filter_h handle, tpw_filter_port_h port_handle
     struct tpw_filter_port* port = (struct tpw_filter_port*)port_handle;
     if (!filter || !port || port->filter != filter || port->direction != TPW_FILTER_PORT_INPUT)
         return TPW_STREAM_ERR_INVALID_ARG;
+    if (port->media_type == TPW_STREAM_TYPE_EVENT)
+        return TPW_STREAM_ERR_INVALID_ARG;
     if (size > 0 && !data)
         return TPW_STREAM_ERR_INVALID_ARG;
 
@@ -79,6 +87,58 @@ int tpw_filter_push_port_data(tpw_filter_h handle, tpw_filter_port_h port_handle
 
     pw_thread_loop_unlock(filter->conn.loop);
     return TPW_STREAM_OK;
+}
+
+tpw_filter_port_h tpw_filter_add_signal_port(tpw_filter_h handle, tpw_filter_port_direction direction)
+{
+    struct tpw_filter* filter = (struct tpw_filter*)handle;
+    if (!filter || filter->state != TPW_FILTER_STATE_CREATED)
+        return NULL;
+
+    uint8_t buffer[1024];
+    struct spa_pod_builder b = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
+    const struct spa_pod* params[1];
+    params[0] = tpw_spa_build_signal_format(&b);
+
+    void* port_data = tpw_filter_add_port_common(filter, direction, params);
+    if (!port_data)
+        return NULL;
+
+    struct tpw_filter_port* port = port_data;
+    port->filter = filter;
+    port->direction = direction;
+    port->media_type = TPW_STREAM_TYPE_SIGNAL;
+
+    if (!tpw_filter_add_port_to_list(filter, port))
+        return NULL;
+
+    return (tpw_filter_port_h)port;
+}
+
+tpw_filter_port_h tpw_filter_add_event_port(tpw_filter_h handle, tpw_filter_port_direction direction)
+{
+    struct tpw_filter* filter = (struct tpw_filter*)handle;
+    if (!filter || filter->state != TPW_FILTER_STATE_CREATED)
+        return NULL;
+
+    uint8_t buffer[1024];
+    struct spa_pod_builder b = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
+    const struct spa_pod* params[1];
+    params[0] = tpw_spa_build_event_format(&b);
+
+    void* port_data = tpw_filter_add_port_common(filter, direction, params);
+    if (!port_data)
+        return NULL;
+
+    struct tpw_filter_port* port = port_data;
+    port->filter = filter;
+    port->direction = direction;
+    port->media_type = TPW_STREAM_TYPE_EVENT;
+
+    if (!tpw_filter_add_port_to_list(filter, port))
+        return NULL;
+
+    return (tpw_filter_port_h)port;
 }
 
 tpw_filter_port_h tpw_filter_add_video_port(tpw_filter_h handle, tpw_filter_port_direction direction,
