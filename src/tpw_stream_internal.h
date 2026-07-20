@@ -10,6 +10,7 @@
 #include <spa/param/video/format-utils.h>
 
 #include "tpw/tpw_stream.h"
+#include "tpw_pw_core_internal.h"
 
 enum tpw_stream_state {
     TPW_STREAM_STATE_CREATED,
@@ -29,7 +30,7 @@ struct tpw_video_format_state {
     enum spa_video_format format;
 };
 
-/* One audio- or video-capture session (spec.md Key Entities: Stream). */
+/* One audio- or video-capture session. */
 struct tpw_stream {
     tpw_stream_type type;
     enum tpw_stream_state state;
@@ -43,17 +44,10 @@ struct tpw_stream {
     tpw_stream_error_cb error_cb;
     void* user_data;
 
-    struct pw_thread_loop* loop;
-    struct pw_context* context;
-    struct pw_core* core;
+    struct tpw_pw_core_conn conn;
     struct pw_stream* pw_stream;
 
-    struct spa_hook core_listener;
     struct spa_hook stream_listener;
-
-    int pending_seq;
-    int connect_result;
-    bool sync_done;
 };
 
 /* (Re)connects the underlying pw_stream with the given negotiated format
