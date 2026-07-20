@@ -8,6 +8,9 @@ unit_tests = [
   'test_filter_error_notification',
   'test_filter_push_data',
   'test_log',
+  'test_filter_signal_port',
+  'test_filter_event_port',
+  'test_filter_port_type',
 ]
 
 # test_error_notification.c is a whitebox test: it reaches into
