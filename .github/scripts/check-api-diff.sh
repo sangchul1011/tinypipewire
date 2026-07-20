@@ -3,10 +3,16 @@
 # is removed or has its signature changed compared to the base branch.
 # Entry point is tpw_filter.h since it transitively includes tpw_stream.h;
 # add new top-level public headers here if any are introduced.
+#
+# Usage: check-api-diff.sh <base_ref> [summary_file]
+# Writes a markdown bullet list of changes to summary_file (if any), and
+# a `changed=true|false` line to $GITHUB_OUTPUT when run as a GitHub
+# Actions step with an `id:` set.
 
 set -u
 
 base_ref="$1"
+summary_file="${2:-}"
 base_dir="$(mktemp -d)/tpw"
 mkdir -p "$base_dir"
 
@@ -44,20 +50,36 @@ while IFS= read -r line; do
 done <<< "$(extract_signatures include)"
 
 changed=0
+summary=""
 for name in "${!base_sig[@]}"; do
     if [ -z "${head_sig[$name]+x}" ]; then
         echo "::warning::Public API function removed: ${name}()"
+        summary="${summary}- \`${name}()\` was removed
+"
         changed=1
     elif [ "${head_sig[$name]}" != "${base_sig[$name]}" ]; then
         echo "::warning::Public API signature changed: ${name}()"
+        summary="${summary}- \`${name}()\` signature changed
+  - before: \`${base_sig[$name]}\`
+  - after: \`${head_sig[$name]}\`
+"
         changed=1
     fi
 done
 
 if [ "$changed" -eq 1 ]; then
     echo "Public API changes detected vs $base_ref (warning only, does not fail the build)."
+    [ -n "$summary_file" ] && printf '%s' "$summary" > "$summary_file"
 else
     echo "No public API signature changes detected."
+fi
+
+if [ -n "${GITHUB_OUTPUT:-}" ]; then
+    if [ "$changed" -eq 1 ]; then
+        echo "changed=true" >> "$GITHUB_OUTPUT"
+    else
+        echo "changed=false" >> "$GITHUB_OUTPUT"
+    fi
 fi
 
 exit 0
