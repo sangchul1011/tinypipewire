@@ -72,6 +72,34 @@ write one output in a single synchronized point. `tpw_filter_push_port_data()`
 lets application code (for example, a `tpw_stream` capture callback) feed
 a filter's input port directly, with no PipeWire-level link involved.
 
+### Logging
+
+`include/tpw/tpw_log.h` lets an application redirect or filter the
+library's internal diagnostic messages instead of only seeing raw
+PipeWire stderr output:
+
+```c
+typedef enum { TPW_LOG_ERROR, TPW_LOG_WARNING, TPW_LOG_INFO, TPW_LOG_DEBUG, TPW_LOG_VERBOSE } tpw_log_level;
+typedef void (*tpw_log_cb)(tpw_log_level level, const char* file, int line, const char* message, void* user_data);
+
+void tpw_log_set_callback(tpw_log_cb callback, void* user_data);
+void tpw_log_set_level(tpw_log_level level);
+```
+
+With no callback registered, messages are written to stderr, tagged
+with the source file (basename) and line that logged them, mirroring
+PipeWire's own log output. The minimum level defaults to
+`TPW_LOG_WARNING`; call `tpw_log_set_level()` to see
+`TPW_LOG_INFO`/`TPW_LOG_DEBUG`/`TPW_LOG_VERBOSE` messages too, or to
+route everything through your own logger:
+
+```c
+void my_logger(tpw_log_level level, const char* file, int line, const char* message, void* user_data) {
+    fprintf(stderr, "[myapp] %s:%d: %s\n", file, line, message);
+}
+tpw_log_set_callback(my_logger, NULL);
+```
+
 ## Examples
 
 - `examples/audio_capture.c` — capture from the default audio source and
