@@ -58,6 +58,9 @@ tpw_filter_h tpw_filter_create(const char* name, tpw_filter_process_cb callback,
 int tpw_filter_set_error_cb(tpw_filter_h filter, tpw_filter_error_cb callback);
 tpw_filter_port_h tpw_filter_add_audio_port(tpw_filter_h filter, tpw_filter_port_direction direction, const tpw_audio_config* config);
 tpw_filter_port_h tpw_filter_add_video_port(tpw_filter_h filter, tpw_filter_port_direction direction, const tpw_video_config* config);
+tpw_filter_port_h tpw_filter_add_signal_port(tpw_filter_h filter, tpw_filter_port_direction direction);
+tpw_filter_port_h tpw_filter_add_event_port(tpw_filter_h filter, tpw_filter_port_direction direction);
+tpw_stream_type tpw_filter_port_get_type(tpw_filter_port_h port);
 int tpw_filter_push_port_data(tpw_filter_h filter, tpw_filter_port_h port, const void* data, size_t size);
 int tpw_filter_start(tpw_filter_h filter);
 int tpw_filter_stop(tpw_filter_h filter);
@@ -65,12 +68,42 @@ void tpw_filter_destroy(tpw_filter_h filter);
 ```
 
 A filter starts empty; ports are added one at a time (each as input or
-output, audio or video, reusing the same config structs as `tpw_stream`),
+output, reusing the same config structs as `tpw_stream` for audio/video),
 and its `tpw_filter_process_cb` is invoked once per cycle with every
 port's buffer together, so the callback can read multiple inputs and
 write one output in a single synchronized point. `tpw_filter_push_port_data()`
 lets application code (for example, a `tpw_stream` capture callback) feed
 a filter's input port directly, with no PipeWire-level link involved.
+`tpw_filter_port_get_type()` reports which kind a given port handle was
+added as.
+
+Beyond audio/video, a filter can also carry two more port kinds, freely
+mixed with the others on the same filter and delivered through the same
+callback:
+
+- **Signal ports** (`tpw_filter_add_signal_port`) carry one continuous
+  channel of raw 32-bit float values — for example, a sensor reading —
+  one value per frame of each cycle, through the same `data`/`size`
+  buffer fields audio/video ports already use. No format configuration
+  is needed.
+- **Event ports** (`tpw_filter_add_event_port`) carry zero or more
+  discrete, time-stamped `tpw_event` items per cycle — MIDI or OSC
+  messages (real wire-format bytes, for interop with other PipeWire
+  MIDI/OSC clients) or property/key-value changes — read and written
+  through a small accessor API instead of a raw buffer:
+
+  ```c
+  size_t tpw_filter_port_event_count(tpw_filter_port_h port);
+  int tpw_filter_port_get_event(tpw_filter_port_h port, size_t index, tpw_event* out);
+  int tpw_filter_port_push_event(tpw_filter_port_h port, const tpw_event* event);
+  ```
+
+  On an input event port, `tpw_filter_port_push_event()` stages an event
+  for delivery on the next cycle (the event-port equivalent of
+  `tpw_filter_push_port_data()`); on an output event port, it must be
+  called from within the processing callback and publishes the event
+  when that cycle ends. Neither the caller nor the library ever
+  constructs or parses a PipeWire/SPA POD directly.
 
 ### Logging
 
@@ -108,6 +141,10 @@ tpw_log_set_callback(my_logger, NULL);
   print each frame's size
 - `examples/filter_mix.c` — mix two audio input ports into one audio
   output port
+- `examples/filter_signal_port.c` — feed a synthetic signal port
+  alongside an audio port into one filter
+- `examples/filter_event_port.c` — echo events from an event input port
+  back out through an event output port
 
 Run them after building:
 
@@ -115,6 +152,8 @@ Run them after building:
 ./build/examples/audio_capture
 ./build/examples/video_capture
 ./build/examples/filter_mix
+./build/examples/filter_signal_port
+./build/examples/filter_event_port
 ```
 
 ## License
