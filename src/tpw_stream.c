@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 
+#include "tpw_log_internal.h"
 #include "tpw_stream_internal.h"
 
 void tpw_stream_on_state_changed(void* data, enum pw_stream_state old, enum pw_stream_state state,
@@ -15,6 +16,7 @@ void tpw_stream_on_state_changed(void* data, enum pw_stream_state old, enum pw_s
 
     if (lost_source && stream->state == TPW_STREAM_STATE_RUNNING) {
         stream->state = TPW_STREAM_STATE_STOPPED;
+        tpw_log_warning("stream: source became unavailable");
         if (stream->error_cb)
             stream->error_cb((tpw_stream_h)stream, TPW_STREAM_ERR_SOURCE_UNAVAILABLE, stream->user_data);
     }
@@ -90,6 +92,7 @@ int tpw_stream_internal_connect(struct tpw_stream* stream, const struct spa_pod*
     stream->pw_stream = pw_stream_new(stream->conn.core, "tpw-stream", props);
     if (!stream->pw_stream) {
         pw_thread_loop_unlock(stream->conn.loop);
+        tpw_log_error("stream: failed to create pipewire stream");
         return TPW_STREAM_ERR_CONNECT_FAILED;
     }
 
@@ -103,6 +106,7 @@ int tpw_stream_internal_connect(struct tpw_stream* stream, const struct spa_pod*
         pw_stream_destroy(stream->pw_stream);
         stream->pw_stream = NULL;
         pw_thread_loop_unlock(stream->conn.loop);
+        tpw_log_error("stream: failed to connect (result=%d)", res);
         return TPW_STREAM_ERR_CONNECT_FAILED;
     }
 
