@@ -33,10 +33,43 @@ jobs:
   api-diff-check:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Check public API signatures against base branch
-        run: .github/scripts/check-api-diff.sh "origin/${{ github.base_ref }}"
+        id: api_diff
+        run: .github/scripts/check-api-diff.sh "origin/${{ github.base_ref }}" /tmp/api-diff-summary.md
+
+      - name: Comment on the PR about API changes
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          marker="<!-- api-diff-check -->"
+          pr_number="${{ github.event.pull_request.number }}"
+          existing_id=$(gh api "repos/${{ github.repository }}/issues/$pr_number/comments" \
+            --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -1)
+
+          if [ "${{ steps.api_diff.outputs.changed }}" = "true" ]; then
+            body="$marker
+          ### Public API signature change detected
+
+          $(cat /tmp/api-diff-summary.md)
+
+          This is a heads-up only; it does not block merging."
+          elif [ -n "$existing_id" ]; then
+            body="$marker
+          ### Public API signature change no longer detected"
+          else
+            exit 0
+          fi
+
+          if [ -n "$existing_id" ]; then
+            gh api "repos/${{ github.repository }}/issues/comments/$existing_id" -X PATCH -f body="$body"
+          else
+            gh api "repos/${{ github.repository }}/issues/$pr_number/comments" -X POST -f body="$body"
+          fi
