@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 
+#include "tpw_spa_format_internal.h"
 #include "tpw_stream_internal.h"
 
 int tpw_stream_set_audio_config(tpw_stream_h handle, const tpw_audio_config* config)
@@ -12,13 +13,8 @@ int tpw_stream_set_audio_config(tpw_stream_h handle, const tpw_audio_config* con
 
     uint8_t buffer[1024];
     struct spa_pod_builder b = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
-    struct spa_audio_info_raw info = {
-        .format = SPA_AUDIO_FORMAT_S16,
-        .rate = (uint32_t)config->sample_rate,
-        .channels = (uint32_t)config->channels,
-    };
     const struct spa_pod* params[1];
-    params[0] = spa_format_audio_raw_build(&b, SPA_PARAM_EnumFormat, &info);
+    params[0] = tpw_spa_build_audio_format(&b, config);
 
     int res = tpw_stream_internal_connect(stream, params, 1);
     if (res < 0)

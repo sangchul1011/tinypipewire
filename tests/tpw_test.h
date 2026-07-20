@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/* Minimal in-repo UTC harness — no external test framework (research.md §2). */
+/* Minimal in-repo test harness — no external test framework dependency. */
 #define TPW_ASSERT(cond)                                                     \
     do {                                                                     \
         if (!(cond)) {                                                       \
