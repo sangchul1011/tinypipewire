@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Warns (does not fail the build) when a public function in include/tpw/*.h
+# is removed or has its signature changed compared to the base branch.
+# Entry point is tpw_filter.h since it transitively includes tpw_stream.h;
+# add new top-level public headers here if any are introduced.
+
+set -u
+
+base_ref="$1"
+base_dir="$(mktemp -d)/tpw"
+mkdir -p "$base_dir"
+
+for f in tpw_filter.h tpw_stream.h; do
+    git show "$base_ref:include/tpw/$f" > "$base_dir/$f" 2>/dev/null
+done
+
+extract_signatures() {
+    local include_dir="$1"
+    gcc -E -P -I "$include_dir" "$include_dir/tpw/tpw_filter.h" 2>/dev/null \
+        | tr '\n' ' ' | tr -s ' ' \
+        | sed 's/;/;\n/g' \
+        | grep -E 'tpw_[A-Za-z0-9_]+ *\(' \
+        | grep -vE '\(\*' \
+        | grep -v '^ *typedef' \
+        | sed 's/^ *//; s/ *$//'
+}
+
+func_name() {
+    grep -oP 'tpw_[A-Za-z0-9_]+(?=\()' <<< "$1" | head -1
+}
+
+declare -A base_sig head_sig
+
+while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    name="$(func_name "$line")"
+    [ -n "$name" ] && base_sig["$name"]="$line"
+done <<< "$(extract_signatures "$(dirname "$base_dir")")"
+
+while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    name="$(func_name "$line")"
+    [ -n "$name" ] && head_sig["$name"]="$line"
+done <<< "$(extract_signatures include)"
+
+changed=0
+for name in "${!base_sig[@]}"; do
+    if [ -z "${head_sig[$name]+x}" ]; then
+        echo "::warning::Public API function removed: ${name}()"
+        changed=1
+    elif [ "${head_sig[$name]}" != "${base_sig[$name]}" ]; then
+        echo "::warning::Public API signature changed: ${name}()"
+        changed=1
+    fi
+done
+
+if [ "$changed" -eq 1 ]; then
+    echo "Public API changes detected vs $base_ref (warning only, does not fail the build)."
+else
+    echo "No public API signature changes detected."
+fi
+
+exit 0
