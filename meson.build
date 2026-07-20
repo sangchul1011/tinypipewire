@@ -22,7 +22,11 @@ tinypipewire_dep = declare_dependency(
   dependencies: [pipewire_dep],
 )
 
-install_headers('include/tpw/tpw_stream.h', subdir: 'tpw')
+install_headers(
+  'include/tpw/tpw_stream.h',
+  'include/tpw/tpw_filter.h',
+  subdir: 'tpw',
+)
 
 if get_option('tests')
   subdir('tests')
