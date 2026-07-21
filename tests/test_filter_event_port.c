@@ -139,6 +139,19 @@ int main(void)
     TPW_ASSERT(ev_in != NULL);
     tpw_filter_port_h ev_out = tpw_filter_add_event_port(filter, TPW_FILTER_PORT_OUTPUT);
     TPW_ASSERT(ev_out != NULL);
+    tpw_filter_port_h audio_in = tpw_filter_add_audio_port(
+        filter, TPW_FILTER_PORT_INPUT, &(tpw_audio_config){ .sample_rate = 48000, .channels = 2 });
+    TPW_ASSERT(audio_in != NULL);
+
+    /* get_event()/event_count() reject a non-event port, an output
+     * event port (get_event() is input-only), and an out-of-range
+     * index — none of this needs a real cycle to have run yet. */
+    tpw_event scratch_ev;
+    TPW_ASSERT_EQ(tpw_filter_port_get_event(audio_in, 0, &scratch_ev), TPW_STREAM_ERR_INVALID_ARG);
+    TPW_ASSERT_EQ(tpw_filter_port_get_event(ev_out, 0, &scratch_ev), TPW_STREAM_ERR_INVALID_ARG);
+    TPW_ASSERT_EQ(tpw_filter_port_get_event(ev_in, 0, &scratch_ev), TPW_STREAM_ERR_INVALID_ARG);
+    TPW_ASSERT_EQ(tpw_filter_port_event_count(audio_in), (size_t)0);
+    TPW_ASSERT_EQ(tpw_filter_port_event_count(ev_out), (size_t)0);
 
     uint8_t junk[4] = { 0 };
     TPW_ASSERT_EQ(tpw_filter_push_port_data(filter, ev_in, junk, sizeof(junk), -1), TPW_STREAM_ERR_INVALID_ARG);
