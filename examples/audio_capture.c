@@ -14,12 +14,11 @@ static void on_signal(int sig)
     g_running = 0;
 }
 
-static void on_data(tpw_stream_h stream, void* data, size_t size, void* user_data)
+static void on_data(tpw_stream_h stream, const tpw_stream_buffer* buf, void* user_data)
 {
     (void)stream;
-    (void)data;
     (void)user_data;
-    printf("audio: received %zu bytes\n", size);
+    printf("audio: received %zu bytes (pts=%lld ns)\n", buf->size, (long long)buf->pts);
 }
 
 static void on_error(tpw_stream_h stream, int error_code, void* user_data)

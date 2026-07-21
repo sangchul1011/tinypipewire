@@ -28,7 +28,8 @@ static void on_process(tpw_filter_h filter, tpw_filter_port_buffer* buffers, siz
     tpw_filter_port_buffer* audio = &buffers[1];
 
     size_t n_values = signal->data ? signal->size / sizeof(float) : 0;
-    printf("filter_signal_port: signal_frames=%zu audio_bytes=%zu\n", n_values, audio->size);
+    printf("filter_signal_port: signal_frames=%zu (pts=%lld ns) audio_bytes=%zu\n", n_values,
+           (long long)signal->pts, audio->size);
 }
 
 int main(void)
@@ -59,8 +60,9 @@ int main(void)
     printf("feeding a synthetic signal alongside an audio input, press Ctrl+C to stop...\n");
     float value = 0.0f;
     while (g_running) {
-        /* Stand in for a real sensor: a ramp value, wrapping at 1.0. */
-        tpw_filter_push_port_data(filter, sig_in, &value, sizeof(value));
+        /* Stand in for a real sensor: a ramp value, wrapping at 1.0. No
+         * hardware timestamp exists for a synthetic value like this. */
+        tpw_filter_push_port_data(filter, sig_in, &value, sizeof(value), -1);
         value += 0.05f;
         if (value > 1.0f)
             value -= 2.0f;
