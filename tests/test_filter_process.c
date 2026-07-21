@@ -38,6 +38,19 @@ static void mixed_process_cb(tpw_filter_h filter, tpw_filter_port_buffer* buffer
         g_mixed_event_pts = buffers[3].pts;
 }
 
+static int g_many_cycles = 0;
+static size_t g_many_n_buffers = 0;
+
+static void many_ports_process_cb(tpw_filter_h filter, tpw_filter_port_buffer* buffers, size_t n_buffers,
+                                   void* user_data)
+{
+    (void)filter;
+    (void)buffers;
+    (void)user_data;
+    g_many_cycles++;
+    g_many_n_buffers = n_buffers;
+}
+
 int main(void)
 {
     tpw_filter_h filter = tpw_filter_create("tpw-test-process", process_cb, NULL);
@@ -56,7 +69,13 @@ int main(void)
     TPW_ASSERT_EQ(g_last_n_buffers, (size_t)3);
     TPW_ASSERT_EQ(g_last_output_pts, (int64_t)-1);
 
+    /* stop() must actually halt delivery, not just stop returning new
+     * cycles eventually — no further cycles once stopped. */
     tpw_filter_stop(filter);
+    int cycles_after_stop = g_cycles;
+    sleep(1);
+    TPW_ASSERT_EQ(g_cycles, cycles_after_stop);
+
     tpw_filter_destroy(filter);
 
     /* One port of each of the four supported kinds on a single filter
@@ -80,5 +99,24 @@ int main(void)
 
     tpw_filter_stop(mixed);
     tpw_filter_destroy(mixed);
+
+    /* More ports than the internal stack-allocation threshold (8) must
+     * fall back to heap allocation for the per-cycle buffer array
+     * without breaking delivery. */
+    tpw_filter_h many = tpw_filter_create("tpw-test-process-many", many_ports_process_cb, NULL);
+    TPW_ASSERT(many != NULL);
+
+    const size_t n_ports = 9;
+    for (size_t i = 0; i < n_ports; i++)
+        TPW_ASSERT(tpw_filter_add_audio_port(many, TPW_FILTER_PORT_INPUT, &cfg) != NULL);
+
+    TPW_ASSERT_EQ(tpw_filter_start(many), TPW_STREAM_OK);
+    sleep(1);
+
+    TPW_ASSERT(g_many_cycles > 0);
+    TPW_ASSERT_EQ(g_many_n_buffers, n_ports);
+
+    tpw_filter_stop(many);
+    tpw_filter_destroy(many);
     return 0;
 }
