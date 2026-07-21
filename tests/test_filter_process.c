@@ -7,28 +7,35 @@
 
 static int g_cycles = 0;
 static size_t g_last_n_buffers = 0;
+static int64_t g_last_output_pts = 0;
 
 static void process_cb(tpw_filter_h filter, tpw_filter_port_buffer* buffers, size_t n_buffers, void* user_data)
 {
     (void)filter;
-    (void)buffers;
     (void)user_data;
     g_cycles++;
     g_last_n_buffers = n_buffers;
     /* Output buffers are left untouched (size stays 0); this must not
-     * be treated as an error by the library. */
+     * be treated as an error by the library. Port 2 (added last) is
+     * the output port; pts is always -1 there, per tpw_filter.h. */
+    if (n_buffers > 2)
+        g_last_output_pts = buffers[2].pts;
 }
 
 static int g_mixed_cycles = 0;
 static size_t g_mixed_n_buffers = 0;
+static int64_t g_mixed_event_pts = 0;
 
 static void mixed_process_cb(tpw_filter_h filter, tpw_filter_port_buffer* buffers, size_t n_buffers, void* user_data)
 {
     (void)filter;
-    (void)buffers;
     (void)user_data;
     g_mixed_cycles++;
     g_mixed_n_buffers = n_buffers;
+    /* Port 3 (added last) is the event port; pts is always -1 there,
+     * per tpw_filter.h. */
+    if (n_buffers > 3)
+        g_mixed_event_pts = buffers[3].pts;
 }
 
 int main(void)
@@ -47,6 +54,7 @@ int main(void)
     /* All three ports' buffers must arrive together, every cycle. */
     TPW_ASSERT(g_cycles > 0);
     TPW_ASSERT_EQ(g_last_n_buffers, (size_t)3);
+    TPW_ASSERT_EQ(g_last_output_pts, (int64_t)-1);
 
     tpw_filter_stop(filter);
     tpw_filter_destroy(filter);
@@ -68,6 +76,7 @@ int main(void)
 
     TPW_ASSERT(g_mixed_cycles > 0);
     TPW_ASSERT_EQ(g_mixed_n_buffers, (size_t)4);
+    TPW_ASSERT_EQ(g_mixed_event_pts, (int64_t)-1);
 
     tpw_filter_stop(mixed);
     tpw_filter_destroy(mixed);
