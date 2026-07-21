@@ -3,11 +3,10 @@
 #include "tpw/tpw_stream.h"
 #include "tpw_test.h"
 
-static void noop_data_cb(tpw_stream_h stream, void* data, size_t size, void* user_data)
+static void noop_data_cb(tpw_stream_h stream, const tpw_stream_buffer* buf, void* user_data)
 {
     (void)stream;
-    (void)data;
-    (void)size;
+    (void)buf;
     (void)user_data;
 }
 

@@ -7,6 +7,7 @@
 
 static int g_calls = 0;
 static size_t g_last_size = 0;
+static int64_t g_last_pts = 0;
 
 static void process_cb(tpw_filter_h filter, tpw_filter_port_buffer* buffers, size_t n_buffers, void* user_data)
 {
@@ -16,6 +17,7 @@ static void process_cb(tpw_filter_h filter, tpw_filter_port_buffer* buffers, siz
         if (buffers[i].data) {
             g_calls++;
             g_last_size = buffers[i].size;
+            g_last_pts = buffers[i].pts;
         }
     }
 }
@@ -33,20 +35,21 @@ int main(void)
 
     /* Pushing to an output port is rejected. */
     char dummy[4] = { 0 };
-    TPW_ASSERT_EQ(tpw_filter_push_port_data(filter, out_port, dummy, sizeof(dummy)), TPW_STREAM_ERR_INVALID_ARG);
+    TPW_ASSERT_EQ(tpw_filter_push_port_data(filter, out_port, dummy, sizeof(dummy), -1), TPW_STREAM_ERR_INVALID_ARG);
 
     TPW_ASSERT_EQ(tpw_filter_start(filter), TPW_STREAM_OK);
 
     /* Only the most recently pushed buffer per port is kept. */
     char first[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
     char second[16] = { 0 };
-    TPW_ASSERT_EQ(tpw_filter_push_port_data(filter, in_port, first, sizeof(first)), TPW_STREAM_OK);
-    TPW_ASSERT_EQ(tpw_filter_push_port_data(filter, in_port, second, sizeof(second)), TPW_STREAM_OK);
+    TPW_ASSERT_EQ(tpw_filter_push_port_data(filter, in_port, first, sizeof(first), 1000), TPW_STREAM_OK);
+    TPW_ASSERT_EQ(tpw_filter_push_port_data(filter, in_port, second, sizeof(second), 2000), TPW_STREAM_OK);
 
     sleep(1);
 
     TPW_ASSERT(g_calls > 0);
     TPW_ASSERT_EQ(g_last_size, sizeof(second));
+    TPW_ASSERT_EQ(g_last_pts, (int64_t)2000);
 
     tpw_filter_stop(filter);
     tpw_filter_destroy(filter);

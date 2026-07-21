@@ -11,11 +11,10 @@
 static int g_error_calls = 0;
 static int g_last_error_code = 0;
 
-static void noop_data_cb(tpw_stream_h stream, void* data, size_t size, void* user_data)
+static void noop_data_cb(tpw_stream_h stream, const tpw_stream_buffer* buf, void* user_data)
 {
     (void)stream;
-    (void)data;
-    (void)size;
+    (void)buf;
     (void)user_data;
 }
 

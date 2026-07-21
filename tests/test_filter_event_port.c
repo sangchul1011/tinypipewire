@@ -127,7 +127,7 @@ int main(void)
     (void)ev_out;
 
     uint8_t junk[4] = { 0 };
-    TPW_ASSERT_EQ(tpw_filter_push_port_data(filter, ev_in, junk, sizeof(junk)), TPW_STREAM_ERR_INVALID_ARG);
+    TPW_ASSERT_EQ(tpw_filter_push_port_data(filter, ev_in, junk, sizeof(junk), -1), TPW_STREAM_ERR_INVALID_ARG);
 
     tpw_event bad_key_on_midi = { .offset = 0, .kind = TPW_EVENT_MIDI, .key = "volume", .data = NULL, .size = 0 };
     TPW_ASSERT_EQ(tpw_filter_port_push_event(ev_in, &bad_key_on_midi), TPW_STREAM_ERR_INVALID_ARG);
