@@ -56,10 +56,13 @@ struct tpw_filter_port {
     } config;
 
     /* Staged application-pushed buffer (input ports only), consumed and
-     * cleared on the next processing cycle. */
+     * cleared on the next processing cycle. pushed_pts is the pts
+     * argument tpw_filter_push_port_data() was called with, carried
+     * through to that cycle's tpw_filter_port_buffer.pts. */
     void* pushed_data;
     size_t pushed_size;
     size_t pushed_capacity;
+    int64_t pushed_pts;
 
     /* Event ports only. incoming_events is this cycle's delivered
      * events (input direction), read via tpw_filter_port_get_event();

@@ -25,7 +25,8 @@ typedef enum {
 } tpw_filter_port_direction;
 
 /* One port's buffer for a single processing cycle. `data`/`size`/
- * `capacity` are valid only for the duration of the process callback. */
+ * `capacity`/`pts` are valid only for the duration of the process
+ * callback. */
 typedef struct {
     tpw_filter_port_h port;
     void* data;      /* NULL if no buffer was available this cycle */
@@ -33,6 +34,13 @@ typedef struct {
                           output: bytes to publish; set by the callback
                           before returning (0 = no output this cycle) */
     size_t capacity;  /* output ports only: max bytes `data` can hold */
+    int64_t pts;      /* input ports only: capture/presentation timestamp
+                          in nanoseconds from the source (e.g. an
+                          ALSA/V4L2 device's driver clock), or the value
+                          passed to tpw_filter_push_port_data() for
+                          pushed data. -1 if unavailable. Always -1 on
+                          output ports and on event ports (each
+                          tpw_event carries its own `offset` instead). */
 } tpw_filter_port_buffer;
 
 /* Invoked once per processing cycle with every port's buffer.
@@ -150,10 +158,14 @@ int tpw_filter_port_push_event(tpw_filter_port_h port, const tpw_event* event);
 /* Stages `size` bytes from `data` for `port` (an input port) to be
  * delivered on the filter's next processing cycle, without creating any
  * PipeWire-level connection. Lets application code (for example, a
- * capture stream's data callback) feed a filter directly. Only the most
- * recently pushed buffer per port is kept. Not valid for event ports —
- * use tpw_filter_port_push_event() instead. */
-int tpw_filter_push_port_data(tpw_filter_h filter, tpw_filter_port_h port, const void* data, size_t size);
+ * capture stream's data callback) feed a filter directly. `pts` is
+ * carried through unchanged to that cycle's tpw_filter_port_buffer.pts
+ * (pass -1 if the source has no timestamp, e.g. tpw_stream_data_cb's
+ * own `pts` when bridging a capture stream into a filter). Only the
+ * most recently pushed buffer per port is kept. Not valid for event
+ * ports — use tpw_filter_port_push_event() instead. */
+int tpw_filter_push_port_data(tpw_filter_h filter, tpw_filter_port_h port, const void* data, size_t size,
+                               int64_t pts);
 
 /* Starts processing. Fails if the filter has zero ports. Safe to call
  * again after stop(). */
