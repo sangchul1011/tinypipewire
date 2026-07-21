@@ -4,6 +4,7 @@
 #define TPW_STREAM_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,9 +33,22 @@ typedef enum {
     TPW_STREAM_ERR_SOURCE_UNAVAILABLE = -5
 } tpw_stream_error;
 
+/* One delivered buffer of captured audio samples or a video frame.
+ * `data`/`size`/`pts` are valid only for the duration of the data
+ * callback. A struct (rather than loose parameters) so future fields
+ * can be added without changing tpw_stream_data_cb's signature. */
+typedef struct {
+    void* data;
+    size_t size;
+    int64_t pts; /* capture timestamp in nanoseconds (the driver clock
+                    used by the underlying SPA node, e.g. ALSA or
+                    V4L2), or -1 if the buffer carried no timestamp
+                    metadata. */
+} tpw_stream_buffer;
+
 /* Delivers one buffer of captured audio samples or a video frame.
- * `data`/`size` are valid only for the duration of this call. */
-typedef void (*tpw_stream_data_cb)(tpw_stream_h stream, void* data, size_t size, void* user_data);
+ * `buf` is valid only for the duration of this call. */
+typedef void (*tpw_stream_data_cb)(tpw_stream_h stream, const tpw_stream_buffer* buf, void* user_data);
 
 /* Reports that `stream`'s source became unavailable while running. */
 typedef void (*tpw_stream_error_cb)(tpw_stream_h stream, int error_code, void* user_data);

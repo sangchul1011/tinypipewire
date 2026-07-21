@@ -57,7 +57,8 @@ tpw_filter_port_h tpw_filter_add_audio_port(tpw_filter_h handle, tpw_filter_port
     return (tpw_filter_port_h)port;
 }
 
-int tpw_filter_push_port_data(tpw_filter_h handle, tpw_filter_port_h port_handle, const void* data, size_t size)
+int tpw_filter_push_port_data(tpw_filter_h handle, tpw_filter_port_h port_handle, const void* data, size_t size,
+                               int64_t pts)
 {
     struct tpw_filter* filter = (struct tpw_filter*)handle;
     struct tpw_filter_port* port = (struct tpw_filter_port*)port_handle;
@@ -84,6 +85,7 @@ int tpw_filter_push_port_data(tpw_filter_h handle, tpw_filter_port_h port_handle
     if (size > 0)
         memcpy(port->pushed_data, data, size);
     port->pushed_size = size;
+    port->pushed_pts = pts;
 
     pw_thread_loop_unlock(filter->conn.loop);
     return TPW_STREAM_OK;

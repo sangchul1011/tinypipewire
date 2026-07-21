@@ -2,9 +2,21 @@
 
 #include <stdlib.h>
 
+#include <spa/buffer/buffer.h>
+#include <spa/buffer/meta.h>
+
 #include "tpw_filter_internal.h"
 
 #define TPW_FILTER_STACK_PORTS 8
+
+/* SPA_META_Header carries the source's capture clock (ALSA/V4L2, etc.);
+ * not every dequeued buffer has one, so -1 signals "unavailable" rather
+ * than guessing a timestamp. */
+static int64_t tpw_filter_buffer_pts(struct pw_buffer* b)
+{
+    struct spa_meta_header* h = spa_buffer_find_meta_data(b->buffer, SPA_META_Header, sizeof(*h));
+    return h ? h->pts : -1;
+}
 
 void tpw_filter_on_process(void* data, struct spa_io_position* position)
 {
@@ -36,6 +48,7 @@ void tpw_filter_on_process(void* data, struct spa_io_position* position)
         buffers[i].data = NULL;
         buffers[i].size = 0;
         buffers[i].capacity = 0;
+        buffers[i].pts = -1;
         dequeued[i] = NULL;
 
         if (port->media_type == TPW_STREAM_TYPE_EVENT) {
@@ -73,6 +86,7 @@ void tpw_filter_on_process(void* data, struct spa_io_position* position)
                  * this cycle; cleared below once the callback returns. */
                 buffers[i].data = port->pushed_data;
                 buffers[i].size = port->pushed_size;
+                buffers[i].pts = port->pushed_pts;
                 continue;
             }
             struct pw_buffer* b = pw_filter_dequeue_buffer(port);
@@ -80,6 +94,7 @@ void tpw_filter_on_process(void* data, struct spa_io_position* position)
                 struct spa_data* d = &b->buffer->datas[0];
                 buffers[i].data = d->data;
                 buffers[i].size = d->chunk ? d->chunk->size : 0;
+                buffers[i].pts = tpw_filter_buffer_pts(b);
                 dequeued[i] = b;
             }
         } else {
