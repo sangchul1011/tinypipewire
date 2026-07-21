@@ -47,6 +47,21 @@ tpw_stream_set_video_config(stream, &v);   /* fps = 0 lets the source pick the r
 One `tpw_stream_h` captures either audio or video; both types share the
 same creation, control, and data-callback functions.
 
+`tpw_stream_data_cb` receives a `const tpw_stream_buffer*` rather than
+loose `data`/`size` parameters, so future fields can be added without
+changing the callback signature. It currently carries:
+
+```c
+typedef struct {
+    void* data;
+    size_t size;
+    int64_t pts; /* capture timestamp in nanoseconds (the driver clock
+                    used by the underlying SPA node, e.g. ALSA or
+                    V4L2), or -1 if the buffer had no timestamp
+                    metadata. */
+} tpw_stream_buffer;
+```
+
 ### Filters
 
 `include/tpw/tpw_filter.h` adds a second handle, `tpw_filter_h`, for
@@ -61,7 +76,7 @@ tpw_filter_port_h tpw_filter_add_video_port(tpw_filter_h filter, tpw_filter_port
 tpw_filter_port_h tpw_filter_add_signal_port(tpw_filter_h filter, tpw_filter_port_direction direction);
 tpw_filter_port_h tpw_filter_add_event_port(tpw_filter_h filter, tpw_filter_port_direction direction);
 tpw_stream_type tpw_filter_port_get_type(tpw_filter_port_h port);
-int tpw_filter_push_port_data(tpw_filter_h filter, tpw_filter_port_h port, const void* data, size_t size);
+int tpw_filter_push_port_data(tpw_filter_h filter, tpw_filter_port_h port, const void* data, size_t size, int64_t pts);
 int tpw_filter_start(tpw_filter_h filter);
 int tpw_filter_stop(tpw_filter_h filter);
 void tpw_filter_destroy(tpw_filter_h filter);
@@ -76,6 +91,12 @@ lets application code (for example, a `tpw_stream` capture callback) feed
 a filter's input port directly, with no PipeWire-level link involved.
 `tpw_filter_port_get_type()` reports which kind a given port handle was
 added as.
+
+Each input port's `tpw_filter_port_buffer` also carries `pts`: the
+buffer's capture timestamp in nanoseconds (from the underlying SPA
+node's clock, or from the `pts` a caller passed to
+`tpw_filter_push_port_data()`), or -1 if unavailable. It's always -1 on
+output ports and on event ports.
 
 Beyond audio/video, a filter can also carry two more port kinds, freely
 mixed with the others on the same filter and delivered through the same
