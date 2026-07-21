@@ -15,6 +15,9 @@ static tpw_event_kind g_last_kind = TPW_EVENT_UNKNOWN;
 static uint8_t g_last_data[64];
 static size_t g_last_size = 0;
 
+static int g_output_push_calls = 0;
+static int g_output_push_ok = 0;
+
 static void process_cb(tpw_filter_h filter, tpw_filter_port_buffer* buffers, size_t n_buffers, void* user_data)
 {
     (void)filter;
@@ -22,6 +25,18 @@ static void process_cb(tpw_filter_h filter, tpw_filter_port_buffer* buffers, siz
     g_cycles++;
     if (n_buffers < 1)
         return;
+
+    /* Output-direction push_event() is only valid from within the
+     * process callback (see tpw_filter.h); port 1 (added second) is
+     * the output event port. */
+    if (n_buffers >= 2) {
+        uint8_t note_on[3] = { 0x90, 0x3c, 0x64 };
+        tpw_event out_ev = { .offset = 0, .kind = TPW_EVENT_MIDI, .key = NULL, .data = note_on,
+                              .size = sizeof(note_on) };
+        g_output_push_calls++;
+        if (tpw_filter_port_push_event(buffers[1].port, &out_ev) == TPW_STREAM_OK)
+            g_output_push_ok++;
+    }
 
     tpw_filter_port_h in = buffers[0].port;
     size_t count = tpw_filter_port_event_count(in);
@@ -124,7 +139,6 @@ int main(void)
     TPW_ASSERT(ev_in != NULL);
     tpw_filter_port_h ev_out = tpw_filter_add_event_port(filter, TPW_FILTER_PORT_OUTPUT);
     TPW_ASSERT(ev_out != NULL);
-    (void)ev_out;
 
     uint8_t junk[4] = { 0 };
     TPW_ASSERT_EQ(tpw_filter_push_port_data(filter, ev_in, junk, sizeof(junk), -1), TPW_STREAM_ERR_INVALID_ARG);
@@ -156,6 +170,12 @@ int main(void)
     TPW_ASSERT(memcmp(g_last_data, midi2, sizeof(midi2)) == 0);
 
     TPW_ASSERT(g_cycles > 0);
+
+    /* Output-direction push_event(), called from inside the process
+     * callback every cycle, must always succeed once a real cycle's
+     * output buffer is available. */
+    TPW_ASSERT(g_output_push_calls > 0);
+    TPW_ASSERT_EQ(g_output_push_ok, g_output_push_calls);
 
     tpw_filter_stop(filter);
     tpw_filter_destroy(filter);
