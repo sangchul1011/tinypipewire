@@ -6,6 +6,7 @@
 #include <stdbool.h>
 
 #include <pipewire/filter.h>
+#include <spa/param/audio/format-utils.h>
 #include <spa/param/video/format-utils.h>
 
 #include "tpw/tpw_filter.h"
@@ -20,6 +21,7 @@ enum tpw_filter_state {
 struct tpw_filter_audio_port_state {
     int sample_rate;
     int channels;
+    enum spa_audio_format format;
 };
 
 struct tpw_filter_video_port_state {

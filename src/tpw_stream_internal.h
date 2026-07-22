@@ -22,6 +22,7 @@ enum tpw_stream_state {
 struct tpw_audio_format_state {
     int sample_rate;
     int channels;
+    enum spa_audio_format format;
 };
 
 struct tpw_video_format_state {

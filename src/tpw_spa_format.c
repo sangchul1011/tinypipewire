@@ -6,10 +6,30 @@
 
 #include "tpw_spa_format_internal.h"
 
-const struct spa_pod* tpw_spa_build_audio_format(struct spa_pod_builder* b, const tpw_audio_config* config)
+static const struct {
+    const char* name;
+    enum spa_audio_format format;
+} tpw_audio_sample_formats[] = {
+    { "S16", SPA_AUDIO_FORMAT_S16 },
+    { "S24", SPA_AUDIO_FORMAT_S24 },
+    { "S32", SPA_AUDIO_FORMAT_S32 },
+    { "F32", SPA_AUDIO_FORMAT_F32 },
+};
+
+enum spa_audio_format tpw_spa_lookup_audio_format(const char* name)
+{
+    for (size_t i = 0; i < SPA_N_ELEMENTS(tpw_audio_sample_formats); i++) {
+        if (strcmp(tpw_audio_sample_formats[i].name, name) == 0)
+            return tpw_audio_sample_formats[i].format;
+    }
+    return SPA_AUDIO_FORMAT_UNKNOWN;
+}
+
+const struct spa_pod* tpw_spa_build_audio_format(struct spa_pod_builder* b, const tpw_audio_config* config,
+                                                  enum spa_audio_format fmt)
 {
     struct spa_audio_info_raw info = {
-        .format = SPA_AUDIO_FORMAT_S16,
+        .format = fmt,
         .rate = (uint32_t)config->sample_rate,
         .channels = (uint32_t)config->channels,
     };

@@ -35,10 +35,14 @@ tpw_filter_port_h tpw_filter_add_audio_port(tpw_filter_h handle, tpw_filter_port
     if (config->sample_rate <= 0 || config->channels <= 0)
         return NULL;
 
+    enum spa_audio_format fmt = tpw_spa_lookup_audio_format(config->format ? config->format : "S16");
+    if (fmt == SPA_AUDIO_FORMAT_UNKNOWN)
+        return NULL;
+
     uint8_t buffer[1024];
     struct spa_pod_builder b = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
     const struct spa_pod* params[1];
-    params[0] = tpw_spa_build_audio_format(&b, config);
+    params[0] = tpw_spa_build_audio_format(&b, config, fmt);
 
     void* port_data = tpw_filter_add_port_common(filter, direction, params);
     if (!port_data)
@@ -50,6 +54,7 @@ tpw_filter_port_h tpw_filter_add_audio_port(tpw_filter_h handle, tpw_filter_port
     port->media_type = TPW_STREAM_TYPE_AUDIO;
     port->config.audio.sample_rate = config->sample_rate;
     port->config.audio.channels = config->channels;
+    port->config.audio.format = fmt;
 
     if (!tpw_filter_add_port_to_list(filter, port))
         return NULL;
