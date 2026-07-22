@@ -186,13 +186,16 @@ Run them after building:
 
 ## Utilities
 
-- `utils/tpw_record.c` — record the default (or a chosen) audio source
-  to a WAV or raw-PCM file:
+- `utils/tpw_record.c` — record the default (or a chosen) audio or
+  video source to a file:
 
   ```sh
-  ./build/utils/tpw_record -o out.wav                      # default source, until Ctrl+C
+  ./build/utils/tpw_record -o out.wav                      # audio, default source, until Ctrl+C
   ./build/utils/tpw_record -o out.pcm -f pcm -d 10          # raw PCM, 10 seconds
   ./build/utils/tpw_record -o out.wav --device alsa_input.usb-...  # pick a source (see `wpctl status`)
+
+  ./build/utils/tpw_record -o out.raw -t video -d 5         # video, raw I420 frames, 5 seconds
+  ./build/utils/tpw_record -o out.y4m -t video -f y4m --fps 30 -d 5  # playable YUV4MPEG2
   ```
 
 ## License
