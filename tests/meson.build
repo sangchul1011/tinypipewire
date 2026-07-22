@@ -1,5 +1,6 @@
 unit_tests = [
   'test_stream_lifecycle',
+  'test_stream_target',
   'test_audio_format',
   'test_video_format',
   'test_error_notification',

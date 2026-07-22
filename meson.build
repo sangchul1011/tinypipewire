@@ -10,7 +10,7 @@ project('tinypipewire', 'c',
 # SPA headers use glibc extensions (newlocale, ssize_t) that require _GNU_SOURCE.
 add_project_arguments('-D_GNU_SOURCE', language: 'c')
 
-pipewire_dep = dependency('libpipewire-0.3', version: '>=0.3.40')
+pipewire_dep = dependency('libpipewire-0.3', version: '>=0.3.44')
 
 tpw_inc = include_directories('include')
 

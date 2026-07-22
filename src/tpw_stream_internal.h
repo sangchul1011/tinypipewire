@@ -44,6 +44,8 @@ struct tpw_stream {
     tpw_stream_error_cb error_cb;
     void* user_data;
 
+    char* target; /* PW_KEY_TARGET_OBJECT, or NULL for auto-connect */
+
     struct tpw_pw_core_conn conn;
     struct pw_stream* pw_stream;
 
