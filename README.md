@@ -193,9 +193,12 @@ Run them after building:
   ./build/utils/tpw_record -o out.wav                      # audio, default source, until Ctrl+C
   ./build/utils/tpw_record -o out.pcm -f pcm -d 10          # raw PCM, 10 seconds
   ./build/utils/tpw_record -o out.wav --device alsa_input.usb-...  # pick a source (see `wpctl status`)
+  ./build/utils/tpw_record -o out.wav --sample-rate 44100 --channels 1 --bits 24 -d 5  # 44.1kHz mono, 24-bit
 
   ./build/utils/tpw_record -o out.raw -t video -d 5         # video, raw I420 frames, 5 seconds
   ./build/utils/tpw_record -o out.y4m -t video -f y4m --fps 30 -d 5  # playable YUV4MPEG2
+  ./build/utils/tpw_record -o out.raw -t video --width 1280 --height 720 -d 5  # 720p raw I420
+  ./build/utils/tpw_record -o out.raw -t video --device v4l2_input.usb-... -d 5  # pick a camera (see `wpctl status`)
   ```
 
 ## License
