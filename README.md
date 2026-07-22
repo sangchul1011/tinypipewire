@@ -184,6 +184,17 @@ Run them after building:
 ./build/examples/filter_event_port
 ```
 
+## Utilities
+
+- `utils/tpw_record.c` — record the default (or a chosen) audio source
+  to a WAV or raw-PCM file:
+
+  ```sh
+  ./build/utils/tpw_record -o out.wav                      # default source, until Ctrl+C
+  ./build/utils/tpw_record -o out.pcm -f pcm -d 10          # raw PCM, 10 seconds
+  ./build/utils/tpw_record -o out.wav --device alsa_input.usb-...  # pick a source (see `wpctl status`)
+  ```
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
