@@ -69,10 +69,12 @@ int tpw_stream_set_error_cb(tpw_stream_h stream, tpw_stream_error_cb callback);
  * auto-connects to PipeWire's default source for its media type. */
 int tpw_stream_set_target(tpw_stream_h stream, const char* target);
 
-/* Audio capture configuration passed to tpw_stream_set_audio_config(). */
+/* Audio capture configuration passed to tpw_stream_set_audio_config()
+ * and tpw_filter_add_audio_port(). */
 typedef struct {
     int sample_rate;          /* Hz, e.g. 48000 */
     int channels;             /* channel count, e.g. 2 */
+    const char* format;       /* "S16", "S24", "S32", or "F32"; NULL defaults to "S16" */
 } tpw_audio_config;
 
 /* Video capture configuration passed to tpw_stream_set_video_config(). */

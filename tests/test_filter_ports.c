@@ -33,6 +33,9 @@ int main(void)
     tpw_audio_config bad_audio = { .sample_rate = 0, .channels = 2 };
     TPW_ASSERT(tpw_filter_add_audio_port(filter, TPW_FILTER_PORT_INPUT, &bad_audio) == NULL);
 
+    tpw_audio_config bad_audio_format = { .sample_rate = 48000, .channels = 2, .format = "NOT_A_FORMAT" };
+    TPW_ASSERT(tpw_filter_add_audio_port(filter, TPW_FILTER_PORT_INPUT, &bad_audio_format) == NULL);
+
     tpw_video_config bad_video = { .width = 640, .height = 480, .pixel_format = "NOT_A_FORMAT", .fps = 0 };
     TPW_ASSERT(tpw_filter_add_video_port(filter, TPW_FILTER_PORT_INPUT, &bad_video) == NULL);
 

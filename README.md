@@ -38,8 +38,8 @@ Format is passed as a config struct, so new fields can be added without
 changing the call signature:
 
 ```c
-tpw_audio_config a = { .sample_rate = 48000, .channels = 2 };
-tpw_stream_set_audio_config(stream, &a);
+tpw_audio_config a = { .sample_rate = 48000, .channels = 2, .format = "F32" };
+tpw_stream_set_audio_config(stream, &a);   /* format = NULL defaults to "S16" */
 
 tpw_video_config v = { .width = 640, .height = 480, .pixel_format = "YUYV", .fps = 30 };
 tpw_stream_set_video_config(stream, &v);   /* fps = 0 lets the source pick the rate */
