@@ -61,6 +61,14 @@ tpw_stream_h tpw_stream_create(tpw_stream_type type, tpw_stream_data_cb callback
 /* Registers (or clears, with NULL) the optional async-error callback. */
 int tpw_stream_set_error_cb(tpw_stream_h stream, tpw_stream_error_cb callback);
 
+/* Sets (or clears, with NULL) the PipeWire node this stream should
+ * connect to, by name or serial (as shown by `wpctl status` or
+ * `pw-cli ls Node`). Must be called before
+ * tpw_stream_set_audio_config()/tpw_stream_set_video_config(), which is
+ * what actually connects the stream. If never called, the stream
+ * auto-connects to PipeWire's default source for its media type. */
+int tpw_stream_set_target(tpw_stream_h stream, const char* target);
+
 /* Audio capture configuration passed to tpw_stream_set_audio_config(). */
 typedef struct {
     int sample_rate;          /* Hz, e.g. 48000 */

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "tpw_log_internal.h"
 #include "tpw_stream_internal.h"
@@ -86,6 +87,8 @@ int tpw_stream_internal_connect(struct tpw_stream* stream, const struct spa_pod*
     const char* media_type = (stream->type == TPW_STREAM_TYPE_AUDIO) ? "Audio" : "Video";
     struct pw_properties* props =
         pw_properties_new(PW_KEY_MEDIA_TYPE, media_type, PW_KEY_MEDIA_CATEGORY, "Capture", NULL);
+    if (stream->target)
+        pw_properties_set(props, PW_KEY_TARGET_OBJECT, stream->target);
 
     pw_thread_loop_lock(stream->conn.loop);
 
@@ -124,6 +127,24 @@ int tpw_stream_set_error_cb(tpw_stream_h handle, tpw_stream_error_cb callback)
         return TPW_STREAM_ERR_INVALID_ARG;
 
     stream->error_cb = callback;
+    return TPW_STREAM_OK;
+}
+
+int tpw_stream_set_target(tpw_stream_h handle, const char* target)
+{
+    struct tpw_stream* stream = (struct tpw_stream*)handle;
+    if (!stream)
+        return TPW_STREAM_ERR_INVALID_ARG;
+
+    char* copy = NULL;
+    if (target && *target) {
+        copy = strdup(target);
+        if (!copy)
+            return TPW_STREAM_ERR_INVALID_ARG;
+    }
+
+    free(stream->target);
+    stream->target = copy;
     return TPW_STREAM_OK;
 }
 
@@ -169,6 +190,7 @@ void tpw_stream_destroy(tpw_stream_h handle)
         tpw_stream_stop(handle);
 
     tpw_stream_teardown(stream);
+    free(stream->target);
     free(stream);
     tpw_pw_global_deinit();
 }

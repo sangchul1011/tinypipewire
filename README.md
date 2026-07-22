@@ -11,7 +11,7 @@ scope for this version.
 ## Build
 
 Requires [Meson](https://mesonbuild.com/), Ninja, and PipeWire development
-files (`libpipewire-0.3` >= 0.3.40) discoverable via pkg-config.
+files (`libpipewire-0.3` >= 0.3.44) discoverable via pkg-config.
 
 ```sh
 meson setup build
@@ -26,6 +26,7 @@ The public interface is the single header `include/tpw/tpw_stream.h`:
 ```c
 tpw_stream_h tpw_stream_create(tpw_stream_type type, tpw_stream_data_cb callback, void* user_data);
 int tpw_stream_set_error_cb(tpw_stream_h stream, tpw_stream_error_cb callback);
+int tpw_stream_set_target(tpw_stream_h stream, const char* target);
 int tpw_stream_set_audio_config(tpw_stream_h stream, const tpw_audio_config* config);
 int tpw_stream_set_video_config(tpw_stream_h stream, const tpw_video_config* config);
 int tpw_stream_start(tpw_stream_h stream);
@@ -46,6 +47,12 @@ tpw_stream_set_video_config(stream, &v);   /* fps = 0 lets the source pick the r
 
 One `tpw_stream_h` captures either audio or video; both types share the
 same creation, control, and data-callback functions.
+
+By default a stream auto-connects to PipeWire's default source for its
+media type. `tpw_stream_set_target()` points it at a specific node by
+name or serial instead (see `wpctl status` or `pw-cli ls Node`).
+Call it before `tpw_stream_set_audio_config()`/`tpw_stream_set_video_config()`,
+which is what actually connects the stream.
 
 `tpw_stream_data_cb` receives a `const tpw_stream_buffer*` rather than
 loose `data`/`size` parameters, so future fields can be added without
