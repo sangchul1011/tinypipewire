@@ -36,3 +36,7 @@ endif
 if get_option('examples')
   subdir('examples')
 endif
+
+if get_option('utils')
+  subdir('utils')
+endif
