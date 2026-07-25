@@ -133,6 +133,67 @@ callback:
   when that cycle ends. Neither the caller nor the library ever
   constructs or parses a PipeWire/SPA POD directly.
 
+#### DMABUF import, hold, and cycle-rate hint
+
+For zero-copy sensor-fusion bundling — combining a camera with faster
+sources and handing every input to an in-process consumer each cycle — a
+filter's video **input** port can import DMABUF file descriptors instead
+of a CPU-mapped buffer, and any input port can *hold* its most recent
+buffer across cycles where no new data arrives:
+
+```c
+typedef enum { TPW_PORT_MEMORY_AUTO, TPW_PORT_MEMORY_DMABUF } tpw_port_memory;
+typedef struct { tpw_port_memory memory; } tpw_filter_port_opts;
+typedef struct { int fd; uint32_t offset; uint32_t stride; uint32_t size; } tpw_dmabuf_plane;
+
+tpw_filter_port_h tpw_filter_add_video_port_ex(tpw_filter_h filter, tpw_filter_port_direction direction,
+                                               const tpw_video_config* config, const tpw_filter_port_opts* opts);
+size_t tpw_filter_port_buffer_dmabuf(const tpw_filter_port_buffer* buf, tpw_dmabuf_plane* planes, size_t max_planes);
+int tpw_filter_port_set_hold(tpw_filter_port_h port, bool enable);
+int tpw_filter_set_period_hint(tpw_filter_h filter, uint32_t max_period_ns);
+```
+
+- **DMABUF import** — `tpw_filter_add_video_port_ex()` with
+  `opts->memory == TPW_PORT_MEMORY_DMABUF` makes a video input port
+  negotiate DMABUF frames (import-only; the source allocates, the filter
+  consumes the fd). `opts == NULL` is exactly `tpw_filter_add_video_port()`.
+  On such a port the buffer's `data` is NULL; read the frame's planes with
+  `tpw_filter_port_buffer_dmabuf()`, which returns the plane count and fills
+  `fd`/`offset`/`stride`/`size` per plane. It returns 0 for a non-DMABUF
+  port, never fabricating an fd. If the linked source cannot provide DMABUF,
+  the port simply delivers no buffers and the condition is logged — there is
+  no silent CPU-copy fallback. The `fd` is borrowed for the callback only.
+- **Hold + freshness** — `tpw_filter_port_set_hold(port, true)` (before
+  start) makes an input port re-present its single most recent buffer (the
+  same DMABUF fd) on cycles with no new data, so a slow camera stays in
+  every bundle alongside a faster source. Each `tpw_filter_port_buffer`
+  carries `bool fresh` (true only for a newly arrived buffer) and
+  `uint64_t seq` (advances only on new data), so the callback can tell a
+  held buffer from a fresh one and count how long it has been held.
+- **Cycle-rate hint** — `tpw_filter_set_period_hint()` (before start)
+  expresses a preferred maximum bundling period in nanoseconds as a latency
+  preference; the PipeWire graph still chooses the driving clock (a faster
+  source pulls the cycle finer). `0` clears it.
+
+**Driving the bundle with a real audio device.** For the sensor-fusion
+pattern — a fast source setting the cycle while a slower DMABUF camera is
+held between its frames — the fast source must be a real, hardware-clocked
+PipeWire node, not application-pushed data (`tpw_filter_push_port_data()`
+stages values but does not drive the graph). A capture device is the
+practical driver. Link it through **signal ports**: a signal port is a
+mono 32-bit-float DSP channel, which is exactly what PipeWire exposes a
+capture device as, so a device's per-channel ports (`capture_FL`,
+`capture_FR`, …) link to signal ports natively — one signal port per
+channel for a multi-channel device. The device, being hardware-clocked,
+then drives the filter's processing cycle, and a DMABUF video input with
+hold enabled is re-presented (same fd, `fresh == false`) on the cycles
+between camera frames. Note two things: the filter's **audio** port
+(`tpw_filter_add_audio_port`) carries interleaved raw audio and does *not*
+link directly into a capture device's DSP graph — use signal ports for
+device input; and the driver is chosen per *node*, not per port (a stereo
+device's `FL`/`FR` are one node), with exactly one driver per graph and
+audio nodes typically preferred over video, so the rest follow its clock.
+
 ### Logging
 
 `include/tpw/tpw_log.h` lets an application redirect or filter the
@@ -173,6 +234,8 @@ tpw_log_set_callback(my_logger, NULL);
   alongside an audio port into one filter
 - `examples/filter_event_port.c` — echo events from an event input port
   back out through an event output port
+- `examples/filter_dmabuf_bundle.c` — bundle a DMABUF camera input (with
+  hold) and a faster signal input, printing each frame's fd and freshness
 
 Run them after building:
 
