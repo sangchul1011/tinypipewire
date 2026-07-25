@@ -38,6 +38,19 @@ static void mixed_process_cb(tpw_filter_h filter, tpw_filter_port_buffer* buffer
         g_mixed_event_pts = buffers[3].pts;
 }
 
+static int g_dmabuf_mixed_cycles = 0;
+static size_t g_dmabuf_mixed_n_buffers = 0;
+
+static void dmabuf_mixed_process_cb(tpw_filter_h filter, tpw_filter_port_buffer* buffers, size_t n_buffers,
+                                    void* user_data)
+{
+    (void)filter;
+    (void)buffers;
+    (void)user_data;
+    g_dmabuf_mixed_cycles++;
+    g_dmabuf_mixed_n_buffers = n_buffers;
+}
+
 static int g_many_cycles = 0;
 static size_t g_many_n_buffers = 0;
 
@@ -99,6 +112,27 @@ int main(void)
 
     tpw_filter_stop(mixed);
     tpw_filter_destroy(mixed);
+
+    /* A DMABUF video input port mixed with audio and signal ports must
+     * still be delivered together in one callback per cycle, even with no
+     * DMABUF source linked — the video port simply carries no frame that
+     * cycle. */
+    tpw_filter_h dmabuf_mixed = tpw_filter_create("tpw-test-process-dmabuf", dmabuf_mixed_process_cb, NULL);
+    TPW_ASSERT(dmabuf_mixed != NULL);
+
+    TPW_ASSERT(tpw_filter_add_audio_port(dmabuf_mixed, TPW_FILTER_PORT_INPUT, &cfg) != NULL);
+    tpw_filter_port_opts dmabuf_opts = { .memory = TPW_PORT_MEMORY_DMABUF };
+    TPW_ASSERT(tpw_filter_add_video_port_ex(dmabuf_mixed, TPW_FILTER_PORT_INPUT, &vcfg, &dmabuf_opts) != NULL);
+    TPW_ASSERT(tpw_filter_add_signal_port(dmabuf_mixed, TPW_FILTER_PORT_INPUT) != NULL);
+
+    TPW_ASSERT_EQ(tpw_filter_start(dmabuf_mixed), TPW_STREAM_OK);
+    sleep(1);
+
+    TPW_ASSERT(g_dmabuf_mixed_cycles > 0);
+    TPW_ASSERT_EQ(g_dmabuf_mixed_n_buffers, (size_t)3);
+
+    tpw_filter_stop(dmabuf_mixed);
+    tpw_filter_destroy(dmabuf_mixed);
 
     /* More ports than the internal stack-allocation threshold (8) must
      * fall back to heap allocation for the per-cycle buffer array
