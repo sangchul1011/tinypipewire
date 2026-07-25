@@ -12,6 +12,9 @@ unit_tests = [
   'test_filter_signal_port',
   'test_filter_event_port',
   'test_filter_port_type',
+  'test_filter_dmabuf',
+  'test_filter_hold',
+  'test_filter_period_hint',
 ]
 
 # test_error_notification.c is a whitebox test: it reaches into
