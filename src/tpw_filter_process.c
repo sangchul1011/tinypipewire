@@ -18,6 +18,19 @@ static int64_t tpw_filter_buffer_pts(struct pw_buffer* b)
     return h ? h->pts : -1;
 }
 
+/* Whether a dequeued input buffer actually carries data this cycle. A
+ * DMABUF port is not CPU-mapped, so its data pointer is always NULL —
+ * presence is the DmaBuf data-type instead. */
+static bool tpw_filter_input_buffer_present(struct tpw_filter_port* port, struct pw_buffer* b)
+{
+    if (!b || b->buffer->n_datas == 0)
+        return false;
+    struct spa_data* d = &b->buffer->datas[0];
+    if (port->use_dmabuf)
+        return d->type == SPA_DATA_DmaBuf;
+    return d->data != NULL;
+}
+
 void tpw_filter_on_process(void* data, struct spa_io_position* position)
 {
     struct tpw_filter* filter = data;
@@ -49,7 +62,10 @@ void tpw_filter_on_process(void* data, struct spa_io_position* position)
         buffers[i].size = 0;
         buffers[i].capacity = 0;
         buffers[i].pts = -1;
+        buffers[i].fresh = false;
+        buffers[i].seq = 0;
         dequeued[i] = NULL;
+        port->current_dmabuf_buf = NULL;
 
         if (port->media_type == TPW_STREAM_TYPE_EVENT) {
             if (port->direction == TPW_FILTER_PORT_INPUT) {
@@ -81,21 +97,59 @@ void tpw_filter_on_process(void* data, struct spa_io_position* position)
         }
 
         if (port->direction == TPW_FILTER_PORT_INPUT) {
-            if (port->pushed_data) {
-                /* Application-pushed data takes priority over the graph
-                 * this cycle; cleared below once the callback returns. */
+            bool got_new = false;
+
+            if (port->pushed_pending) {
+                /* Application-pushed data takes priority over the graph. */
                 buffers[i].data = port->pushed_data;
                 buffers[i].size = port->pushed_size;
                 buffers[i].pts = port->pushed_pts;
-                continue;
+                port->pushed_pending = false;
+                got_new = true;
+            } else {
+                struct pw_buffer* b = pw_filter_dequeue_buffer(port);
+                if (b) {
+                    dequeued[i] = b;
+                    if (tpw_filter_input_buffer_present(port, b)) {
+                        struct spa_data* d = &b->buffer->datas[0];
+                        if (port->use_dmabuf) {
+                            /* Not CPU-mapped: reach the frame via the accessor. */
+                            port->current_dmabuf_buf = b->buffer;
+                        } else {
+                            buffers[i].data = d->data;
+                            buffers[i].size = d->chunk ? d->chunk->size : 0;
+                        }
+                        buffers[i].pts = tpw_filter_buffer_pts(b);
+                        got_new = true;
+                    }
+                }
             }
-            struct pw_buffer* b = pw_filter_dequeue_buffer(port);
-            if (b && b->buffer->datas[0].data) {
-                struct spa_data* d = &b->buffer->datas[0];
-                buffers[i].data = d->data;
-                buffers[i].size = d->chunk ? d->chunk->size : 0;
-                buffers[i].pts = tpw_filter_buffer_pts(b);
-                dequeued[i] = b;
+
+            if (got_new) {
+                buffers[i].fresh = true;
+                buffers[i].seq = ++port->update_seq;
+                if (port->hold_enabled) {
+                    /* Retain this buffer for re-presentation; release the
+                     * previously held one now that it has a replacement. */
+                    if (port->held)
+                        pw_filter_queue_buffer(port, port->held);
+                    port->held = dequeued[i];
+                    dequeued[i] = NULL; /* held: not requeued at cycle end */
+                    port->has_held = true;
+                    port->held_data = buffers[i].data;
+                    port->held_size = buffers[i].size;
+                    port->held_pts = buffers[i].pts;
+                    port->held_dmabuf_buf = port->current_dmabuf_buf;
+                }
+            } else if (port->hold_enabled && port->has_held) {
+                /* No new data this cycle: re-present the retained buffer. */
+                buffers[i].data = port->held_data;
+                buffers[i].size = port->held_size;
+                buffers[i].pts = port->held_pts;
+                port->current_dmabuf_buf = port->held_dmabuf_buf;
+                buffers[i].seq = port->update_seq;
+            } else {
+                buffers[i].seq = port->update_seq;
             }
         } else {
             struct pw_buffer* b = pw_filter_dequeue_buffer(port);
@@ -130,14 +184,6 @@ void tpw_filter_on_process(void* data, struct spa_io_position* position)
             }
             if (dequeued[i])
                 pw_filter_queue_buffer(port, dequeued[i]);
-            continue;
-        }
-
-        if (port->direction == TPW_FILTER_PORT_INPUT && port->pushed_data && !dequeued[i]) {
-            free(port->pushed_data);
-            port->pushed_data = NULL;
-            port->pushed_size = 0;
-            port->pushed_capacity = 0;
             continue;
         }
 

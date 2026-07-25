@@ -3,6 +3,7 @@
 #ifndef TPW_FILTER_H
 #define TPW_FILTER_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
 
@@ -41,6 +42,14 @@ typedef struct {
                           pushed data. -1 if unavailable. Always -1 on
                           output ports and on event ports (each
                           tpw_event carries its own `offset` instead). */
+    bool fresh;       /* input ports only: true only when this buffer is
+                          new this cycle; false for a held re-presentation
+                          (see tpw_filter_port_set_hold()) or a cycle with
+                          no buffer. Always false on output ports. */
+    uint64_t seq;     /* input ports only: per-port update counter that
+                          advances only when new data arrives, so it is
+                          unchanged across held cycles and its deltas count
+                          genuinely new buffers. */
 } tpw_filter_port_buffer;
 
 /* Invoked once per processing cycle with every port's buffer.
@@ -106,6 +115,60 @@ tpw_filter_port_h tpw_filter_add_audio_port(tpw_filter_h filter, tpw_filter_port
  * failure behavior as tpw_filter_add_audio_port(). */
 tpw_filter_port_h tpw_filter_add_video_port(tpw_filter_h filter, tpw_filter_port_direction direction,
                                              const tpw_video_config* config);
+
+/* How a port's buffers are carried. AUTO is the pre-feature default
+ * (graph-selected, normally CPU-mapped). DMABUF makes a video input port
+ * negotiate DMABUF file descriptors instead of a CPU buffer. */
+typedef enum {
+    TPW_PORT_MEMORY_AUTO,
+    TPW_PORT_MEMORY_DMABUF
+} tpw_port_memory;
+
+/* Extensible per-port options. A NULL or zeroed struct means AUTO, i.e.
+ * the behavior of the non-_ex add call. */
+typedef struct {
+    tpw_port_memory memory;
+} tpw_filter_port_opts;
+
+/* One plane of an imported DMABUF frame. `fd` is borrowed (import-only,
+ * not owned): valid only for the processing callback, do not close it. */
+typedef struct {
+    int      fd;
+    uint32_t offset;   /* byte offset to the plane within the dmabuf */
+    uint32_t stride;   /* row stride in bytes */
+    uint32_t size;     /* valid bytes of this plane */
+} tpw_dmabuf_plane;
+
+/* Adds one video port with options. Equivalent to tpw_filter_add_video_port()
+ * when `opts` is NULL. With opts->memory == TPW_PORT_MEMORY_DMABUF the port
+ * (input only) negotiates DMABUF frames; its tpw_filter_port_buffer.data is
+ * NULL and planes are read via tpw_filter_port_buffer_dmabuf(). Returns NULL
+ * for DMABUF on an output port or an unsupported/invalid request. */
+tpw_filter_port_h tpw_filter_add_video_port_ex(tpw_filter_h filter, tpw_filter_port_direction direction,
+                                                const tpw_video_config* config,
+                                                const tpw_filter_port_opts* opts);
+
+/* Fills up to `max_planes` entries of `planes` with the current cycle's
+ * DMABUF frame layout for `buf` and returns the plane count. Returns 0 for
+ * a non-DMABUF port or a cycle with no buffer, without writing `planes`.
+ * Valid only during the processing callback. */
+size_t tpw_filter_port_buffer_dmabuf(const tpw_filter_port_buffer* buf,
+                                      tpw_dmabuf_plane* planes, size_t max_planes);
+
+/* Enables (or disables) single-buffer "hold" on an input `port`: on a cycle
+ * where the port receives no new data, its most recent buffer is
+ * re-presented (same DMABUF fd) with tpw_filter_port_buffer.fresh == false,
+ * instead of reporting no buffer. Exactly one buffer is retained. Must be
+ * called before tpw_filter_start(). Returns 0 on success, a tpw_stream_error
+ * code otherwise (wrong direction, or already started). */
+int tpw_filter_port_set_hold(tpw_filter_port_h port, bool enable);
+
+/* Records a preferred maximum bundling period in nanoseconds, offered to
+ * the graph as a requested latency (a duration, which PipeWire rescales to
+ * the graph clock) at connect time; it never forces the graph's clock or
+ * driver. 0 clears the hint. Must be called before tpw_filter_start().
+ * Returns 0 on success, a tpw_stream_error code otherwise. */
+int tpw_filter_set_period_hint(tpw_filter_h filter, uint32_t max_period_ns);
 
 /* Adds one signal port (input or output) to `filter` — a continuous
  * channel of raw 32-bit float values, one value per frame of each

@@ -65,6 +65,10 @@ struct tpw_filter_port {
     size_t pushed_size;
     size_t pushed_capacity;
     int64_t pushed_pts;
+    bool pushed_pending; /* a freshly pushed buffer awaits this cycle's
+                            delivery; kept separate from pushed_data (which
+                            hold may retain across cycles) so a push is
+                            delivered exactly once. */
 
     /* Event ports only. incoming_events is this cycle's delivered
      * events (input direction), read via tpw_filter_port_get_event();
@@ -94,6 +98,29 @@ struct tpw_filter_port {
     size_t n_pending_events;
     size_t pending_events_capacity;
     size_t event_output_capacity;
+
+    /* DMABUF import (video input ports added via _ex with DMABUF). When
+     * set, the port negotiates DmaBuf buffers (no MAP_BUFFERS) and
+     * current_dmabuf_buf points at this cycle's dequeued buffer for the
+     * accessor to read; NULL outside a cycle or when no buffer arrived. */
+    bool use_dmabuf;
+    struct spa_buffer* current_dmabuf_buf;
+
+    /* Hold: when enabled, an input cycle with no new data re-presents the
+     * port's most recent buffer. `held` is the retained dequeued PipeWire
+     * buffer (NULL when the last buffer came from push), returned to the
+     * source only when a new buffer arrives. has_held/held_* snapshot the
+     * last delivered buffer so it can be re-presented; held_dmabuf_buf is
+     * what the accessor reads on a held cycle. update_seq backs
+     * tpw_filter_port_buffer.seq and advances only on genuinely new data. */
+    bool hold_enabled;
+    bool has_held;
+    struct pw_buffer* held;
+    struct spa_buffer* held_dmabuf_buf;
+    void* held_data;
+    size_t held_size;
+    int64_t held_pts;
+    uint64_t update_seq;
 };
 
 /* One multi-port filter. */
@@ -112,6 +139,10 @@ struct tpw_filter {
     struct tpw_pw_core_conn conn;
     struct pw_filter* pw_filter;
     struct spa_hook filter_listener;
+
+    /* Optional preferred maximum bundling period (nanoseconds); 0 = unset.
+     * Applied as a node.latency preference before the first connect. */
+    uint32_t period_hint_ns;
 };
 
 /* Appends `port` to filter->ports, growing the array as needed. Returns
@@ -155,5 +186,18 @@ size_t tpw_filter_event_finish_output(struct tpw_filter_port* port, void* buf, s
  * incoming_events array itself); a no-op for a non-event port. Called
  * from tpw_filter_destroy(). */
 void tpw_filter_event_free_port(struct tpw_filter_port* port);
+
+/* Emits the DmaBuf SPA_PARAM_Buffers param for a negotiated `use_dmabuf`
+ * port via pw_filter_update_params(); a no-op for a non-DMABUF port.
+ * Called from param_changed once the port's format is set. */
+void tpw_filter_dmabuf_update_params(struct tpw_filter_port* port);
+
+/* Logs (WARNING) that a DMABUF port's source could not provide DMABUF, so
+ * the port delivers no buffers. A no-op for a non-DMABUF port. */
+void tpw_filter_dmabuf_log_unavailable(struct tpw_filter_port* port);
+
+/* Numerator of the "num/48000" node.latency time ratio for a period hint
+ * of `period_ns` nanoseconds (floored, min 1). Exposed for unit testing. */
+uint32_t tpw_filter_period_hint_num(uint32_t period_ns);
 
 #endif /* TPW_FILTER_INTERNAL_H */
