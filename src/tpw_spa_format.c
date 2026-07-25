@@ -3,6 +3,9 @@
 #include <string.h>
 
 #include <spa/param/audio/dsp-utils.h>
+#include <spa/param/param.h>
+#include <spa/param/buffers.h>
+#include <spa/buffer/buffer.h>
 
 #include "tpw_spa_format_internal.h"
 
@@ -96,4 +99,16 @@ const struct spa_pod* tpw_spa_build_event_format(struct spa_pod_builder* b)
         SPA_FORMAT_mediaType,    SPA_POD_Id(SPA_MEDIA_TYPE_application),
         SPA_FORMAT_mediaSubtype, SPA_POD_Id(SPA_MEDIA_SUBTYPE_control), 0);
     return spa_pod_builder_pop(b, &f);
+}
+
+const struct spa_pod* tpw_spa_build_dmabuf_buffers(struct spa_pod_builder* b, unsigned int extra_buffers)
+{
+    /* Advertise DmaBuf only: a source that cannot provide it fails to
+     * negotiate rather than falling back to a CPU copy. Only dataType and
+     * the pool count are constrained; block size/stride stay negotiable. */
+    int min_buffers = 2 + (int)extra_buffers;
+    return spa_pod_builder_add_object(b,
+        SPA_TYPE_OBJECT_ParamBuffers, SPA_PARAM_Buffers,
+        SPA_PARAM_BUFFERS_buffers,  SPA_POD_CHOICE_RANGE_Int(min_buffers, min_buffers, 32),
+        SPA_PARAM_BUFFERS_dataType, SPA_POD_Int(1 << SPA_DATA_DmaBuf));
 }

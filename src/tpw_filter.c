@@ -1,7 +1,11 @@
 /* SPDX-License-Identifier: MIT */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <pipewire/keys.h>
+#include <spa/utils/dict.h>
 
 #include "tpw_filter_internal.h"
 #include "tpw_log_internal.h"
@@ -11,12 +15,24 @@ void tpw_filter_on_param_changed(void* data, void* port_data, uint32_t id, const
     struct tpw_filter* filter = data;
     struct tpw_filter_port* port = port_data;
 
-    /* A port's negotiated format being cleared is PipeWire's signal that
-     * whatever was feeding it is gone; other ports are unaffected. */
-    if (id != SPA_PARAM_Format || param != NULL || !port)
+    if (id != SPA_PARAM_Format || !port)
         return;
 
-    tpw_log_warning("filter '%s': a port's source became unavailable", filter->name ? filter->name : "tpw-filter");
+    if (param != NULL) {
+        /* Format negotiated. A DMABUF port advertises its DmaBuf Buffers
+         * param now (deferred from add time, which crashes 1.0.5); a
+         * no-op for every other port. */
+        tpw_filter_dmabuf_update_params(port);
+        return;
+    }
+
+    /* param == NULL: the port's negotiated format was cleared — its source
+     * is gone, or a DMABUF port's source could not provide DMABUF. */
+    if (port->use_dmabuf)
+        tpw_filter_dmabuf_log_unavailable(port);
+    else
+        tpw_log_warning("filter '%s': a port's source became unavailable",
+                        filter->name ? filter->name : "tpw-filter");
 
     if (filter->error_cb)
         filter->error_cb((tpw_filter_h)filter, (tpw_filter_port_h)port, TPW_STREAM_ERR_SOURCE_UNAVAILABLE,
@@ -128,6 +144,43 @@ int tpw_filter_set_error_cb(tpw_filter_h handle, tpw_filter_error_cb callback)
     return TPW_STREAM_OK;
 }
 
+int tpw_filter_set_period_hint(tpw_filter_h handle, uint32_t max_period_ns)
+{
+    struct tpw_filter* filter = (struct tpw_filter*)handle;
+    if (!filter)
+        return TPW_STREAM_ERR_INVALID_ARG;
+    if (filter->state != TPW_FILTER_STATE_CREATED)
+        return TPW_STREAM_ERR_NOT_CONFIGURED;
+
+    filter->period_hint_ns = max_period_ns;
+    return TPW_STREAM_OK;
+}
+
+/* Numerator of the node.latency "num/48000" time ratio for a period hint,
+ * floored (never coarser than requested) and clamped to at least 1. The
+ * denominator 48000 is an arbitrary reference — PipeWire rescales the ratio
+ * to the actual graph clock, so no real sample rate is assumed. */
+uint32_t tpw_filter_period_hint_num(uint32_t period_ns)
+{
+    uint64_t num = (uint64_t)period_ns * 48000u / 1000000000ULL;
+    return num < 1 ? 1u : (uint32_t)num;
+}
+
+/* Applies the period hint as a node.latency preference; a no-op when unset.
+ * PipeWire rescales the ratio to the graph clock. */
+static void tpw_filter_apply_period_hint(struct tpw_filter* filter)
+{
+    if (filter->period_hint_ns == 0)
+        return;
+
+    char latency[32];
+    snprintf(latency, sizeof(latency), "%u/48000", tpw_filter_period_hint_num(filter->period_hint_ns));
+
+    struct spa_dict_item items[] = { SPA_DICT_ITEM_INIT(PW_KEY_NODE_LATENCY, latency) };
+    struct spa_dict dict = SPA_DICT_INIT(items, 1);
+    pw_filter_update_properties(filter->pw_filter, NULL, &dict);
+}
+
 int tpw_filter_start(tpw_filter_h handle)
 {
     struct tpw_filter* filter = (struct tpw_filter*)handle;
@@ -139,7 +192,10 @@ int tpw_filter_start(tpw_filter_h handle)
     pw_thread_loop_lock(filter->conn.loop);
     if (filter->state == TPW_FILTER_STATE_CREATED) {
         /* First start: ports were already added with their format params,
-         * so connecting now negotiates and activates them together. */
+         * so connecting now negotiates and activates them together. The
+         * period hint (if any) is a node property, so it must be set before
+         * connect. */
+        tpw_filter_apply_period_hint(filter);
         int res = pw_filter_connect(filter->pw_filter, PW_FILTER_FLAG_RT_PROCESS, NULL, 0);
         if (res < 0) {
             pw_thread_loop_unlock(filter->conn.loop);
@@ -165,6 +221,19 @@ int tpw_filter_stop(tpw_filter_h handle)
 
     pw_thread_loop_lock(filter->conn.loop);
     pw_filter_set_active(filter->pw_filter, false);
+    /* Return any held buffer to the pool now that processing is paused, and
+     * reset per-port hold state so a restart begins holding afresh. */
+    for (size_t i = 0; i < filter->n_ports; i++) {
+        struct tpw_filter_port* port = filter->ports[i];
+        if (port->held) {
+            pw_filter_queue_buffer(port, port->held);
+            port->held = NULL;
+        }
+        port->has_held = false;
+        port->held_data = NULL;
+        port->held_dmabuf_buf = NULL;
+        port->current_dmabuf_buf = NULL;
+    }
     pw_thread_loop_unlock(filter->conn.loop);
 
     filter->state = TPW_FILTER_STATE_STOPPED;

@@ -38,4 +38,11 @@ const struct spa_pod* tpw_spa_build_signal_format(struct spa_pod_builder* b);
  * `b`: application/control media type, no per-instance fields. */
 const struct spa_pod* tpw_spa_build_event_format(struct spa_pod_builder* b);
 
+/* Builds a SPA_PARAM_Buffers POD advertising DmaBuf as the only accepted
+ * memory type (dataType = 1<<SPA_DATA_DmaBuf). `extra_buffers` is added to
+ * the requested pool count so a held port can retain one frame while the
+ * next is produced. Applied via pw_filter_update_params() in param_changed
+ * (never at add time — crashes PipeWire 1.0.5). */
+const struct spa_pod* tpw_spa_build_dmabuf_buffers(struct spa_pod_builder* b, unsigned int extra_buffers);
+
 #endif /* TPW_SPA_FORMAT_INTERNAL_H */
