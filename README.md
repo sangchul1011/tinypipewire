@@ -19,6 +19,15 @@ meson compile -C build
 meson test -C build
 ```
 
+`meson test` needs no hardware. Tests that do — they link a real camera or
+microphone into a filter — live in a separate suite that is skipped unless
+asked for, and report SKIP rather than failing when no such device is
+attached:
+
+```sh
+meson test -C build --suite hardware
+```
+
 ## API
 
 The public interface is the single header `include/tpw/tpw_stream.h`:
@@ -180,11 +189,12 @@ pattern — a fast source setting the cycle while a slower DMABUF camera is
 held between its frames — the fast source must be a real, hardware-clocked
 PipeWire node, not application-pushed data (`tpw_filter_push_port_data()`
 stages values but does not drive the graph). A capture device is the
-practical driver. Link it through **signal ports**: a signal port is a
-mono 32-bit-float DSP channel, which is exactly what PipeWire exposes a
-capture device as, so a device's per-channel ports (`capture_FL`,
-`capture_FR`, …) link to signal ports natively — one signal port per
-channel for a multi-channel device. The device, being hardware-clocked,
+practical driver. Link it through **signal ports** (with
+`tpw_filter_port_link()`, below): a signal port is a mono 32-bit-float DSP
+channel, which is exactly what PipeWire exposes a capture device as, so a
+device's per-channel ports (`capture_FL`, `capture_FR`, …) link to signal
+ports natively — one signal port per channel for a multi-channel device.
+The device, being hardware-clocked,
 then drives the filter's processing cycle, and a DMABUF video input with
 hold enabled is re-presented (same fd, `fresh == false`) on the cycles
 between camera frames. Note two things: the filter's **audio** port
@@ -193,6 +203,42 @@ link directly into a capture device's DSP graph — use signal ports for
 device input; and the driver is chosen per *node*, not per port (a stereo
 device's `FL`/`FR` are one node), with exactly one driver per graph and
 audio nodes typically preferred over video, so the rest follow its clock.
+
+#### Linking a port to a real device
+
+A filter input port can be connected straight to a capture device with a
+PipeWire **core link** — no `pw-link` call and no session-manager routing
+policy, so an application wires its own graph:
+
+```c
+int tpw_filter_port_link(tpw_filter_port_h port, const char* target);
+int tpw_filter_port_unlink(tpw_filter_port_h port);
+```
+
+- **Target syntax** — `target` is a node name, an `object.serial` (a string
+  of digits), or `"node:port"` to pin an exact output port on that node.
+  Names are the ones `wpctl status` and `pw-cli ls Node` print. When only a
+  node is named, PipeWire picks a compatible output port on it, so a stereo
+  microphone resolves to `capture_FL` and a camera to `capture_1` without
+  the caller naming them.
+- **Call it after `tpw_filter_start()`** — this is the one port call that
+  is *not* pre-start. The target is looked up in the running graph, so the
+  filter's own node has to exist there first. Calling it earlier returns
+  `TPW_STREAM_ERR_NOT_CONFIGURED`.
+- **Input ports only**, one link at a time. Linking an already-linked port
+  returns `TPW_STREAM_ERR_INVALID_ARG`; unlink first to re-target it.
+- **The filter owns its links** — `tpw_filter_stop()` and
+  `tpw_filter_destroy()` release every link, so `tpw_filter_port_unlink()`
+  is only needed to re-target a port while the filter keeps running.
+- **Failures are clean and synchronous** — the call blocks until the link
+  negotiates. An unknown target gives `TPW_STREAM_ERR_INVALID_ARG` and a
+  format that cannot negotiate gives `TPW_STREAM_ERR_INVALID_FORMAT`; in
+  neither case is a partial link left behind. If a linked device later
+  disappears, the filter's error callback reports
+  `TPW_STREAM_ERR_SOURCE_UNAVAILABLE` for that port.
+
+Remember that an audio device links to a **signal** port, not an audio
+port — see the note above.
 
 ### Logging
 
@@ -236,6 +282,8 @@ tpw_log_set_callback(my_logger, NULL);
   back out through an event output port
 - `examples/filter_dmabuf_bundle.c` — bundle a DMABUF camera input (with
   hold) and a faster signal input, printing each frame's fd and freshness
+- `examples/filter_port_link.c` — link a camera and a microphone straight
+  into a filter by node name, with no `pw-link` step
 
 Run them after building:
 
@@ -245,6 +293,8 @@ Run them after building:
 ./build/examples/filter_mix
 ./build/examples/filter_signal_port
 ./build/examples/filter_event_port
+# takes node names from `wpctl status`
+./build/examples/filter_port_link <video-node> [audio-node]
 ```
 
 ## Utilities
