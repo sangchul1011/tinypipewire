@@ -112,9 +112,9 @@ tpw_filter_h tpw_filter_create(const char* name, tpw_filter_process_cb callback,
     }
 
     pw_thread_loop_lock(filter->conn.loop);
-    /* No PipeWire-level linking is exposed to callers, so ports may stay
-     * unlinked forever; node.always-process keeps .process() firing
-     * regardless so the app can drive I/O via push_port_data. */
+    /* Linking a port is optional, so ports may stay unlinked forever;
+     * node.always-process keeps .process() firing regardless so the app can
+     * drive I/O via push_port_data. */
     struct pw_properties* props = pw_properties_new(PW_KEY_NODE_ALWAYS_PROCESS, "true", NULL);
     filter->pw_filter =
         pw_filter_new(filter->conn.core, filter->name ? filter->name : "tpw-filter", props);
