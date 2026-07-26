@@ -259,10 +259,15 @@ int tpw_filter_port_push_event(tpw_filter_port_h port_handle, const tpw_event* e
         return TPW_STREAM_ERR_INVALID_ARG;
 
     struct tpw_filter* filter = port->filter;
-    pw_thread_loop_lock(filter->conn.loop);
+    /* An output port is pushed from inside the processing callback, which
+     * already runs on the loop's own thread; locking there would deadlock. */
+    bool lock = tpw_filter_processing != filter;
+    if (lock)
+        pw_thread_loop_lock(filter->conn.loop);
 
     if (!tpw_filter_pending_event_append(port, event)) {
-        pw_thread_loop_unlock(filter->conn.loop);
+        if (lock)
+            pw_thread_loop_unlock(filter->conn.loop);
         return TPW_STREAM_ERR_INVALID_ARG;
     }
 
@@ -272,11 +277,13 @@ int tpw_filter_port_push_event(tpw_filter_port_h port_handle, const tpw_event* e
         size_t needed = tpw_filter_event_encode(port, NULL, 0);
         if (needed > port->event_output_capacity) {
             tpw_filter_pending_event_pop_last(port);
-            pw_thread_loop_unlock(filter->conn.loop);
+            if (lock)
+                pw_thread_loop_unlock(filter->conn.loop);
             return TPW_STREAM_ERR_INVALID_ARG;
         }
     }
 
-    pw_thread_loop_unlock(filter->conn.loop);
+    if (lock)
+        pw_thread_loop_unlock(filter->conn.loop);
     return TPW_STREAM_OK;
 }
