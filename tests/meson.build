@@ -31,11 +31,12 @@ foreach name : unit_tests
   test(name, exe)
 endforeach
 
-# Tests needing a real camera or microphone. They exit 77 (SKIP) when no
-# such device is present, and are kept out of a plain `meson test` run:
-# use `meson test --suite hardware` to run them.
+# Tests needing real hardware, or measuring timing. They exit 77 (SKIP)
+# when the device they need is absent, and are kept out of a plain
+# `meson test` run: use `meson test --suite hardware` to run them.
 hardware_tests = [
   'test_filter_port_link_hw',
+  'test_filter_sensor_latency_hw',
 ]
 
 foreach name : hardware_tests
@@ -43,5 +44,7 @@ foreach name : hardware_tests
     dependencies: [tinypipewire_dep],
     include_directories: src_inc,
   )
-  test(name, exe, suite: 'hardware', timeout: 60)
+  # A camera is an exclusive device, so these must not run against each
+  # other or the second one fails to link.
+  test(name, exe, suite: 'hardware', timeout: 60, is_parallel: false)
 endforeach
