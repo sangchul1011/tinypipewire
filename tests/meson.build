@@ -17,6 +17,7 @@ unit_tests = [
   'test_filter_period_hint',
   'test_filter_port_link',
   'test_filter_callback_push',
+  'test_filter_push_order',
 ]
 
 # test_error_notification.c is a whitebox test: it reaches into
