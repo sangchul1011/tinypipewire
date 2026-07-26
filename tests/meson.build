@@ -37,6 +37,7 @@ endforeach
 hardware_tests = [
   'test_filter_port_link_hw',
   'test_filter_sensor_latency_hw',
+  'test_filter_sensor_dummy_hw',
 ]
 
 foreach name : hardware_tests
