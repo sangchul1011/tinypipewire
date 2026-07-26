@@ -30,6 +30,9 @@ install_headers(
 )
 
 if get_option('tests')
+  # Hardware tests need a real capture device, so a plain `meson test` skips
+  # the whole suite; run it with `meson test --suite hardware`.
+  add_test_setup('default', exclude_suites: ['hardware'], is_default: true)
   subdir('tests')
 endif
 
