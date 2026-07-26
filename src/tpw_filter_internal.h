@@ -175,6 +175,11 @@ bool tpw_filter_add_port_to_list(struct tpw_filter* filter, struct tpw_filter_po
  * buffer first) and invokes the developer's process_cb once. */
 void tpw_filter_on_process(void* data, struct spa_io_position* position);
 
+/* The filter whose process callback this thread is currently running, or
+ * NULL. Taking the thread-loop lock from inside that callback deadlocks
+ * against PipeWire's own buffer setup, so the push helpers skip it. */
+extern _Thread_local const struct tpw_filter* tpw_filter_processing;
+
 /* .param_changed callback registered on the underlying pw_filter;
  * treats a port's format being cleared (param == NULL for
  * SPA_PARAM_Format) as that port's source becoming unavailable. */

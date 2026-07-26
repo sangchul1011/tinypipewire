@@ -9,6 +9,8 @@
 
 #define TPW_FILTER_STACK_PORTS 8
 
+_Thread_local const struct tpw_filter* tpw_filter_processing;
+
 /* SPA_META_Header carries the source's capture clock (ALSA/V4L2, etc.);
  * not every dequeued buffer has one, so -1 signals "unavailable" rather
  * than guessing a timestamp. */
@@ -162,8 +164,14 @@ void tpw_filter_on_process(void* data, struct spa_io_position* position)
         }
     }
 
-    if (filter->process_cb)
+    if (filter->process_cb) {
+        /* Marked for the duration of the callback so the push helpers know
+         * not to take this filter's loop lock from inside it. */
+        const struct tpw_filter* outer = tpw_filter_processing;
+        tpw_filter_processing = filter;
         filter->process_cb((tpw_filter_h)filter, buffers, filter->n_ports, filter->user_data);
+        tpw_filter_processing = outer;
+    }
 
     for (size_t i = 0; i < filter->n_ports; i++) {
         struct tpw_filter_port* port = filter->ports[i];
