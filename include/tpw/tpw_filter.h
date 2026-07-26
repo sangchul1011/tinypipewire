@@ -170,6 +170,18 @@ int tpw_filter_port_set_hold(tpw_filter_port_h port, bool enable);
  * Returns 0 on success, a tpw_stream_error code otherwise. */
 int tpw_filter_set_period_hint(tpw_filter_h filter, uint32_t max_period_ns);
 
+/* Links an input `port` straight to a source node, needing no external
+ * tool or session manager. `target` is a node name, an object.serial, or
+ * "node:port"; naming only a node lets PipeWire pick a compatible port.
+ * Must be called after tpw_filter_start(), unlike the other port calls,
+ * because the target is looked up in the running graph. Blocks until the
+ * link negotiates. Returns 0, or a tpw_stream_error code. */
+int tpw_filter_port_link(tpw_filter_port_h port, const char* target);
+
+/* Releases the link created on `port`, which is only needed to re-target
+ * it while running; stop and destroy release every link themselves. */
+int tpw_filter_port_unlink(tpw_filter_port_h port);
+
 /* Adds one signal port (input or output) to `filter` — a continuous
  * channel of raw 32-bit float values, one value per frame of each
  * processing cycle (matching how audio port buffers are sized). No

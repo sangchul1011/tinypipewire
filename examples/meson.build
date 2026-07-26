@@ -21,3 +21,7 @@ executable('filter_event_port', 'filter_event_port.c',
 executable('filter_dmabuf_bundle', 'filter_dmabuf_bundle.c',
   dependencies: [tinypipewire_dep],
 )
+
+executable('filter_port_link', 'filter_port_link.c',
+  dependencies: [tinypipewire_dep],
+)
