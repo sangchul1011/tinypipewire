@@ -21,6 +21,70 @@ struct tpw_pw_core_conn {
     bool sync_done;
 };
 
+/* One PipeWire node global seen through the registry. */
+struct tpw_pw_node_entry {
+    uint32_t id;
+    char* name;
+    uint64_t serial;
+};
+
+/* One PipeWire port global seen through the registry. */
+struct tpw_pw_port_entry {
+    uint32_t id;
+    uint32_t node_id;
+    char* name;
+    enum spa_direction direction;
+};
+
+/* A live view of the graph's node and port globals, kept current by a
+ * registry listener. Bound lazily so a client that never needs it pays
+ * nothing; zero-initialized means "not bound yet". */
+struct tpw_pw_registry {
+    struct pw_registry* registry;
+    struct spa_hook listener;
+
+    struct tpw_pw_node_entry* nodes;
+    size_t n_nodes;
+    size_t nodes_capacity;
+
+    struct tpw_pw_port_entry* ports;
+    size_t n_ports;
+    size_t ports_capacity;
+
+    /* Set when a node this client cares about disappears; the owner reads
+     * and clears it. Kept generic: the registry itself has no idea what a
+     * link is. */
+    void (*node_removed_cb)(void* data, uint32_t id);
+    void* node_removed_data;
+};
+
+/* Binds `reg` to `conn`'s core and waits (bounded) for the initial burst
+ * of globals to arrive, so a lookup right after this call sees the graph
+ * as it currently is. A no-op returning 0 if already bound. Returns 0 on
+ * success, a negative error code otherwise. */
+int tpw_pw_registry_bind(struct tpw_pw_registry* reg, struct tpw_pw_core_conn* conn);
+
+/* Waits for one core round-trip so any globals created since the last
+ * call have been delivered. Use when an object is expected to appear
+ * shortly (objects show up asynchronously after the call that creates
+ * them). Returns 0 on success, negative on timeout. */
+int tpw_pw_registry_sync(struct tpw_pw_registry* reg, struct tpw_pw_core_conn* conn);
+
+/* Removes the listener, destroys the registry proxy, and frees both
+ * caches. Safe on an unbound or already-torn-down registry. Must be
+ * called with the thread loop locked, or after it has been stopped. */
+void tpw_pw_registry_teardown(struct tpw_pw_registry* reg);
+
+/* Finds a node by exact name, or 0 if there is no such node. */
+uint32_t tpw_pw_registry_find_node_by_name(const struct tpw_pw_registry* reg, const char* name);
+
+/* Finds a node by object.serial, or 0 if there is no such node. */
+uint32_t tpw_pw_registry_find_node_by_serial(const struct tpw_pw_registry* reg, uint64_t serial);
+
+/* Finds a port by owning node id, exact name, and direction; 0 if none. */
+uint32_t tpw_pw_registry_find_port(const struct tpw_pw_registry* reg, uint32_t node_id, const char* name,
+                                    enum spa_direction direction);
+
 /* Increments the process-wide pw_init() refcount, calling pw_init() on
  * the first call. Must be paired with tpw_pw_global_deinit(). */
 void tpw_pw_global_init(void);

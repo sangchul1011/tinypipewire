@@ -219,6 +219,10 @@ int tpw_filter_stop(tpw_filter_h handle)
     if (filter->state != TPW_FILTER_STATE_RUNNING)
         return TPW_STREAM_OK;
 
+    /* Drop any links first: they were made against the running graph and a
+     * restart re-links explicitly. */
+    tpw_filter_release_all_links(filter);
+
     pw_thread_loop_lock(filter->conn.loop);
     pw_filter_set_active(filter->pw_filter, false);
     /* Return any held buffer to the pool now that processing is paused, and
@@ -248,6 +252,16 @@ void tpw_filter_destroy(tpw_filter_h handle)
 
     if (filter->state == TPW_FILTER_STATE_RUNNING)
         tpw_filter_stop(handle);
+    else
+        tpw_filter_release_all_links(filter);
+
+    /* The registry and any links must go while the loop still runs, since
+     * destroying their proxies talks to the server. */
+    if (filter->conn.loop) {
+        pw_thread_loop_lock(filter->conn.loop);
+        tpw_pw_registry_teardown(&filter->registry);
+        pw_thread_loop_unlock(filter->conn.loop);
+    }
 
     /* The ports themselves are owned by pw_filter and freed by
      * pw_filter_destroy() inside tpw_filter_teardown(); only the extra

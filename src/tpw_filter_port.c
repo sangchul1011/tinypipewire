@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: MIT */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <pipewire/keys.h>
 
 #include "tpw_filter_internal.h"
 #include "tpw_log_internal.h"
@@ -12,11 +15,23 @@ static void* tpw_filter_add_port_common(struct tpw_filter* filter, tpw_filter_po
 {
     enum spa_direction pw_dir = (direction == TPW_FILTER_PORT_INPUT) ? SPA_DIRECTION_INPUT : SPA_DIRECTION_OUTPUT;
 
+    /* Name the port deterministically so tpw_filter_port_link() can find
+     * this port's own global in the registry later. */
+    char name[sizeof(((struct tpw_filter_port*)NULL)->pw_port_name)];
+    snprintf(name, sizeof(name), "tpw_port_%zu", filter->n_ports);
+
+    struct pw_properties* props = pw_properties_new(PW_KEY_PORT_NAME, name, NULL);
+    if (!props)
+        return NULL;
+
     pw_thread_loop_lock(filter->conn.loop);
     void* port_data =
         pw_filter_add_port(filter->pw_filter, pw_dir, flags,
-                            sizeof(struct tpw_filter_port), NULL, params, 1);
+                            sizeof(struct tpw_filter_port), props, params, 1);
     pw_thread_loop_unlock(filter->conn.loop);
+
+    if (port_data)
+        memcpy(((struct tpw_filter_port*)port_data)->pw_port_name, name, sizeof(name));
     return port_data;
 }
 

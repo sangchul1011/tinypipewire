@@ -18,6 +18,10 @@ enum tpw_filter_state {
     TPW_FILTER_STATE_STOPPED,
 };
 
+/* Defined in tpw_filter_port_link.c; only ever held as a pointer here. */
+struct tpw_link_wait;
+struct pw_link_info;
+
 struct tpw_filter_audio_port_state {
     int sample_rate;
     int channels;
@@ -121,6 +125,19 @@ struct tpw_filter_port {
     size_t held_size;
     int64_t held_pts;
     uint64_t update_seq;
+
+    /* Core link (tpw_filter_port_link). pw_port_name is the PW_KEY_PORT_NAME
+     * this port was created with, used to find own_global_id in the registry.
+     * link_proxy owns the created link; link_state_seen_active distinguishes
+     * "still negotiating" from "was up, then the source vanished". */
+    char pw_port_name[24];
+    uint32_t own_global_id;
+    struct pw_proxy* link_proxy;
+    struct spa_hook link_listener;
+    bool link_state_seen_active;
+    bool link_lost;                 /* the link died after being up; proxy still
+                                       needs destroying by its owner */
+    struct tpw_link_wait* link_wait; /* set only while a link call is blocked */
 };
 
 /* One multi-port filter. */
@@ -143,6 +160,10 @@ struct tpw_filter {
     /* Optional preferred maximum bundling period (nanoseconds); 0 = unset.
      * Applied as a node.latency preference before the first connect. */
     uint32_t period_hint_ns;
+
+    /* Registry view of the graph, bound lazily on the first port link and
+     * used to resolve target/own port ids. */
+    struct tpw_pw_registry registry;
 };
 
 /* Appends `port` to filter->ports, growing the array as needed. Returns
@@ -199,5 +220,14 @@ void tpw_filter_dmabuf_log_unavailable(struct tpw_filter_port* port);
 /* Numerator of the "num/48000" node.latency time ratio for a period hint
  * of `period_ns` nanoseconds (floored, min 1). Exposed for unit testing. */
 uint32_t tpw_filter_period_hint_num(uint32_t period_ns);
+
+/* .info callback registered on a port's link proxy; reports a link that
+ * was up and has since gone away as the source becoming unavailable.
+ * Exposed (rather than static) so a unit test can drive it directly. */
+void tpw_filter_link_on_info(void* data, const struct pw_link_info* info);
+
+/* Releases any link held by any of `filter`'s ports. Called from
+ * tpw_filter_stop()/tpw_filter_destroy(); safe when nothing is linked. */
+void tpw_filter_release_all_links(struct tpw_filter* filter);
 
 #endif /* TPW_FILTER_INTERNAL_H */
