@@ -206,11 +206,12 @@ tpw_stream_type tpw_filter_port_get_type(tpw_filter_port_h port);
 size_t tpw_filter_port_event_count(tpw_filter_port_h port);
 
 /* Reads the event at `index` (0-based, cycle-delivery order) on `port`
- * (an input event port) into `*out`. Valid only during the processing
- * callback; `out`'s data/key pointers are valid only for that same
- * call. Returns 0 on success, a tpw_stream_error code otherwise
- * (invalid index, wrong port kind/direction, or an event of an
- * unrecognized kind). */
+ * (an input event port) into `*out`. An item of a control kind this
+ * library doesn't recognize is still returned, as TPW_EVENT_UNKNOWN.
+ * Valid only during the processing callback; `out`'s data/key pointers
+ * are valid only for that same call. Returns 0 on success, a
+ * tpw_stream_error code otherwise (invalid index, or wrong port
+ * kind/direction). */
 int tpw_filter_port_get_event(tpw_filter_port_h port, size_t index, tpw_event* out);
 
 /* Adds one event to `port`'s event queue; the library copies `event`'s
