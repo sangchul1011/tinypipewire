@@ -19,18 +19,27 @@ meson compile -C build
 meson test -C build
 ```
 
-`meson test` needs no hardware. Tests that do — they link a real camera or
-microphone into a filter — live in a separate suite that is skipped unless
-asked for, and report SKIP rather than failing when no such device is
-attached:
+`meson test` needs no hardware. Tests that do — they link a real camera,
+microphone or temperature sensor into a filter — and tests that measure
+timing live in a separate suite that is skipped unless asked for, and
+report SKIP rather than failing when a device they need is absent:
 
 ```sh
 meson test -C build --suite hardware
 ```
 
+The examples, tests, and utilities each build by default and can be turned
+off individually:
+
+```sh
+meson setup build -Dexamples=false -Dtests=false -Dutils=false
+```
+
 ## API
 
-The public interface is the single header `include/tpw/tpw_stream.h`:
+Three headers are installed: `tpw_stream.h` for capture, `tpw_filter.h`
+for multi-port filters, and `tpw_log.h` for logging. Capture is the whole
+of `include/tpw/tpw_stream.h`:
 
 ```c
 tpw_stream_h tpw_stream_create(tpw_stream_type type, tpw_stream_data_cb callback, void* user_data);
@@ -104,7 +113,10 @@ and its `tpw_filter_process_cb` is invoked once per cycle with every
 port's buffer together, so the callback can read multiple inputs and
 write one output in a single synchronized point. `tpw_filter_push_port_data()`
 lets application code (for example, a `tpw_stream` capture callback) feed
-a filter's input port directly, with no PipeWire-level link involved.
+a filter's input port directly, with no PipeWire-level link involved. It
+is callable from any thread, including from inside the processing
+callback itself; the bytes are copied and delivered on the next cycle,
+and only the most recent push per port is kept.
 `tpw_filter_port_get_type()` reports which kind a given port handle was
 added as.
 
@@ -140,7 +152,10 @@ callback:
   `tpw_filter_push_port_data()`); on an output event port, it must be
   called from within the processing callback and publishes the event
   when that cycle ends. Neither the caller nor the library ever
-  constructs or parses a PipeWire/SPA POD directly.
+  constructs or parses a PipeWire/SPA POD directly. An item another
+  PipeWire client wrote in a control kind this library does not recognize
+  still arrives, as `TPW_EVENT_UNKNOWN` with its raw undecoded bytes;
+  that kind is read-only and is rejected if pushed.
 
 #### DMABUF import, hold, and cycle-rate hint
 
@@ -293,6 +308,7 @@ Run them after building:
 ./build/examples/filter_mix
 ./build/examples/filter_signal_port
 ./build/examples/filter_event_port
+./build/examples/filter_dmabuf_bundle
 # takes node names from `wpctl status`
 ./build/examples/filter_port_link <video-node> [audio-node]
 ```
