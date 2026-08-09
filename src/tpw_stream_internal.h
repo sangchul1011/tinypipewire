@@ -54,6 +54,8 @@ struct tpw_stream {
     size_t bytes_per_frame;
     uint64_t overrun_last_log_ns;
     uint64_t overrun_suppressed;
+    uint64_t unusable_last_log_ns;
+    uint64_t unusable_suppressed;
 
     tpw_stream_data_cb data_cb;
     tpw_stream_playback_cb playback_cb;
