@@ -6,9 +6,9 @@
 #include "tpw_log_internal.h"
 #include "tpw_stream_internal.h"
 
-/* An application whose callback is systematically late would otherwise log
- * every cycle, turning a performance problem into a much worse one. */
-#define TPW_OVERRUN_LOG_INTERVAL_NS 1000000000ull
+/* A condition that repeats every cycle would otherwise log every cycle,
+ * turning a problem on the real-time thread into a much worse one. */
+#define TPW_LOG_INTERVAL_NS 1000000000ull
 
 static uint64_t tpw_monotonic_ns(void)
 {
@@ -17,18 +17,22 @@ static uint64_t tpw_monotonic_ns(void)
     return (uint64_t)ts.tv_sec * 1000000000ull + (uint64_t)ts.tv_nsec;
 }
 
-bool tpw_stream_playback_note_overrun(struct tpw_stream* stream, uint64_t now_ns)
+/* A zero timestamp means nothing has been logged yet, so the first
+ * occurrence of a run always reports. */
+static bool tpw_rate_limited(uint64_t* last_log_ns, uint64_t* suppressed, uint64_t now_ns)
 {
-    /* A zero timestamp means nothing has been logged yet, so the first
-     * overrun of a run always reports. */
-    if (stream->overrun_last_log_ns != 0 &&
-        now_ns - stream->overrun_last_log_ns < TPW_OVERRUN_LOG_INTERVAL_NS) {
-        stream->overrun_suppressed++;
+    if (*last_log_ns != 0 && now_ns - *last_log_ns < TPW_LOG_INTERVAL_NS) {
+        (*suppressed)++;
         return false;
     }
 
-    stream->overrun_last_log_ns = now_ns;
+    *last_log_ns = now_ns;
     return true;
+}
+
+bool tpw_stream_playback_note_overrun(struct tpw_stream* stream, uint64_t now_ns)
+{
+    return tpw_rate_limited(&stream->overrun_last_log_ns, &stream->overrun_suppressed, now_ns);
 }
 
 /* Nanoseconds one full cycle of `capacity` bytes occupies, or 0 when the
@@ -91,8 +95,17 @@ void tpw_stream_on_process_playback(void* data)
     if (!b)
         return;
 
+    /* No writable region to fill — an unmappable buffer type, for instance.
+     * Say so, or the stream is silent with nothing to explain it. */
     struct spa_data* d = &b->buffer->datas[0];
     if (!d->data || d->maxsize == 0 || !d->chunk || !stream->playback_cb) {
+        if (tpw_rate_limited(&stream->unusable_last_log_ns, &stream->unusable_suppressed,
+                             tpw_monotonic_ns())) {
+            tpw_log_warning("stream: playback buffer offers no writable region (type %u); "
+                            "emitting nothing (%llu more suppressed)",
+                            d->type, (unsigned long long)stream->unusable_suppressed);
+            stream->unusable_suppressed = 0;
+        }
         pw_stream_queue_buffer(stream->pw_stream, b);
         return;
     }
