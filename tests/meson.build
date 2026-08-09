@@ -18,6 +18,7 @@ unit_tests = [
   'test_filter_port_link',
   'test_filter_callback_push',
   'test_filter_push_order',
+  'test_stream_playback',
 ]
 
 # test_error_notification.c is a whitebox test: it reaches into
@@ -39,6 +40,7 @@ hardware_tests = [
   'test_filter_port_link_hw',
   'test_filter_sensor_latency_hw',
   'test_filter_sensor_dummy_hw',
+  'test_stream_playback_hw',
 ]
 
 foreach name : hardware_tests
