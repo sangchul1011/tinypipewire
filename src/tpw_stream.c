@@ -17,7 +17,8 @@ void tpw_stream_on_state_changed(void* data, enum pw_stream_state old, enum pw_s
 
     if (lost_source && stream->state == TPW_STREAM_STATE_RUNNING) {
         stream->state = TPW_STREAM_STATE_STOPPED;
-        tpw_log_warning("stream: source became unavailable");
+        tpw_log_warning("stream: %s became unavailable",
+                        stream->direction == TPW_STREAM_DIRECTION_PLAYBACK ? "output device" : "source");
         if (stream->error_cb)
             stream->error_cb((tpw_stream_h)stream, TPW_STREAM_ERR_SOURCE_UNAVAILABLE, stream->user_data);
     }
@@ -27,6 +28,12 @@ static const struct pw_stream_events tpw_stream_events = {
     PW_VERSION_STREAM_EVENTS,
     .state_changed = tpw_stream_on_state_changed,
     .process = tpw_stream_on_process,
+};
+
+static const struct pw_stream_events tpw_stream_playback_events = {
+    PW_VERSION_STREAM_EVENTS,
+    .state_changed = tpw_stream_on_state_changed,
+    .process = tpw_stream_on_process_playback,
 };
 
 static void tpw_stream_teardown(struct tpw_stream* stream)
@@ -47,11 +54,11 @@ static void tpw_stream_teardown(struct tpw_stream* stream)
     tpw_pw_core_teardown(&stream->conn);
 }
 
-tpw_stream_h tpw_stream_create(tpw_stream_type type, tpw_stream_data_cb callback, void* user_data)
+/* Allocates a stream of `type`/`direction` and brings up its own loop.
+ * Callers attach the direction-appropriate callback to the result. */
+static struct tpw_stream* tpw_stream_alloc(tpw_stream_type type, enum tpw_stream_direction direction,
+                                            void* user_data)
 {
-    if (!callback || (type != TPW_STREAM_TYPE_AUDIO && type != TPW_STREAM_TYPE_VIDEO))
-        return NULL;
-
     tpw_pw_global_init();
 
     struct tpw_stream* stream = calloc(1, sizeof(*stream));
@@ -61,8 +68,8 @@ tpw_stream_h tpw_stream_create(tpw_stream_type type, tpw_stream_data_cb callback
     }
 
     stream->type = type;
+    stream->direction = direction;
     stream->state = TPW_STREAM_STATE_CREATED;
-    stream->data_cb = callback;
     stream->user_data = user_data;
 
     if (tpw_pw_core_connect(&stream->conn, "tpw-stream-loop") < 0) {
@@ -72,6 +79,33 @@ tpw_stream_h tpw_stream_create(tpw_stream_type type, tpw_stream_data_cb callback
         return NULL;
     }
 
+    return stream;
+}
+
+tpw_stream_h tpw_stream_create(tpw_stream_type type, tpw_stream_data_cb callback, void* user_data)
+{
+    if (!callback || (type != TPW_STREAM_TYPE_AUDIO && type != TPW_STREAM_TYPE_VIDEO))
+        return NULL;
+
+    struct tpw_stream* stream = tpw_stream_alloc(type, TPW_STREAM_DIRECTION_CAPTURE, user_data);
+    if (!stream)
+        return NULL;
+
+    stream->data_cb = callback;
+    return (tpw_stream_h)stream;
+}
+
+tpw_stream_h tpw_stream_create_playback(tpw_stream_playback_cb callback, void* user_data)
+{
+    if (!callback)
+        return NULL;
+
+    struct tpw_stream* stream =
+        tpw_stream_alloc(TPW_STREAM_TYPE_AUDIO, TPW_STREAM_DIRECTION_PLAYBACK, user_data);
+    if (!stream)
+        return NULL;
+
+    stream->playback_cb = callback;
     return (tpw_stream_h)stream;
 }
 
@@ -84,9 +118,10 @@ int tpw_stream_internal_connect(struct tpw_stream* stream, const struct spa_pod*
         pw_thread_loop_unlock(stream->conn.loop);
     }
 
+    bool playback = stream->direction == TPW_STREAM_DIRECTION_PLAYBACK;
     const char* media_type = (stream->type == TPW_STREAM_TYPE_AUDIO) ? "Audio" : "Video";
-    struct pw_properties* props =
-        pw_properties_new(PW_KEY_MEDIA_TYPE, media_type, PW_KEY_MEDIA_CATEGORY, "Capture", NULL);
+    struct pw_properties* props = pw_properties_new(PW_KEY_MEDIA_TYPE, media_type, PW_KEY_MEDIA_CATEGORY,
+                                                     playback ? "Playback" : "Capture", NULL);
     if (stream->target)
         pw_properties_set(props, PW_KEY_TARGET_OBJECT, stream->target);
 
@@ -99,9 +134,11 @@ int tpw_stream_internal_connect(struct tpw_stream* stream, const struct spa_pod*
         return TPW_STREAM_ERR_CONNECT_FAILED;
     }
 
-    pw_stream_add_listener(stream->pw_stream, &stream->stream_listener, &tpw_stream_events, stream);
+    pw_stream_add_listener(stream->pw_stream, &stream->stream_listener,
+                            playback ? &tpw_stream_playback_events : &tpw_stream_events, stream);
 
-    int res = pw_stream_connect(stream->pw_stream, PW_DIRECTION_INPUT, PW_ID_ANY,
+    int res = pw_stream_connect(stream->pw_stream, playback ? PW_DIRECTION_OUTPUT : PW_DIRECTION_INPUT,
+                                 PW_ID_ANY,
                                  PW_STREAM_FLAG_AUTOCONNECT | PW_STREAM_FLAG_MAP_BUFFERS |
                                      PW_STREAM_FLAG_RT_PROCESS,
                                  params, n_params);

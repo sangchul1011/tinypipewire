@@ -1,9 +1,16 @@
+# audio_playback generates a tone, so it is the one example needing libm.
+m_dep = meson.get_compiler('c').find_library('m', required: false)
+
 executable('audio_capture', 'audio_capture.c',
   dependencies: [tinypipewire_dep],
 )
 
 executable('video_capture', 'video_capture.c',
   dependencies: [tinypipewire_dep],
+)
+
+executable('audio_playback', 'audio_playback.c',
+  dependencies: [tinypipewire_dep, m_dep],
 )
 
 executable('filter_mix', 'filter_mix.c',

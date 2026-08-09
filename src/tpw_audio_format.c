@@ -3,6 +3,22 @@
 #include "tpw_spa_format_internal.h"
 #include "tpw_stream_internal.h"
 
+size_t tpw_audio_bytes_per_frame(enum spa_audio_format format, int channels)
+{
+    if (channels <= 0)
+        return 0;
+
+    size_t sample;
+    switch (format) {
+    case SPA_AUDIO_FORMAT_S16: sample = 2; break;
+    case SPA_AUDIO_FORMAT_S24: sample = 3; break; /* packed, not padded to 4 */
+    case SPA_AUDIO_FORMAT_S32:
+    case SPA_AUDIO_FORMAT_F32: sample = 4; break;
+    default: return 0;
+    }
+    return sample * (size_t)channels;
+}
+
 int tpw_stream_set_audio_config(tpw_stream_h handle, const tpw_audio_config* config)
 {
     struct tpw_stream* stream = (struct tpw_stream*)handle;
@@ -27,6 +43,7 @@ int tpw_stream_set_audio_config(tpw_stream_h handle, const tpw_audio_config* con
     stream->format.audio.sample_rate = config->sample_rate;
     stream->format.audio.channels = config->channels;
     stream->format.audio.format = fmt;
+    stream->bytes_per_frame = tpw_audio_bytes_per_frame(fmt, config->channels);
     stream->format_set = true;
     stream->state = TPW_STREAM_STATE_FORMAT_SET;
     return TPW_STREAM_OK;

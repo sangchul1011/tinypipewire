@@ -10,7 +10,8 @@ project('tinypipewire', 'c',
 # SPA headers use glibc extensions (newlocale, ssize_t) that require _GNU_SOURCE.
 add_project_arguments('-D_GNU_SOURCE', language: 'c')
 
-pipewire_dep = dependency('libpipewire-0.3', version: '>=0.3.44')
+# 0.3.50 is where pw_buffer.requested landed; playback needs it to size a cycle.
+pipewire_dep = dependency('libpipewire-0.3', version: '>=0.3.50')
 
 tpw_inc = include_directories('include')
 

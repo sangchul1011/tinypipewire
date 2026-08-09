@@ -8,6 +8,9 @@ int tpw_stream_set_video_config(tpw_stream_h handle, const tpw_video_config* con
     struct tpw_stream* stream = (struct tpw_stream*)handle;
     if (!stream || stream->type != TPW_STREAM_TYPE_VIDEO || !config || !config->pixel_format)
         return TPW_STREAM_ERR_INVALID_ARG;
+    /* Playback is audio-only, so a video format has nothing to connect to. */
+    if (stream->direction != TPW_STREAM_DIRECTION_CAPTURE)
+        return TPW_STREAM_ERR_INVALID_ARG;
     if (config->width <= 0 || config->height <= 0 || config->fps < 0)
         return TPW_STREAM_ERR_INVALID_FORMAT;
 
