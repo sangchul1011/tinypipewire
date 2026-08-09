@@ -5,13 +5,15 @@ unified interface for capturing audio and video. It hides PipeWire's
 thread-loop management, SPA POD format negotiation, and buffer
 dequeue/queue plumbing, exposing only a small opaque-handle API.
 
-Audio and camera **capture** are supported. Audio **playback** is out of
-scope for this version.
+Audio and camera **capture** are supported, as is audio **playback**.
+Video playback is out of scope: PipeWire has no video sink device to play
+into, so an application that wants to emit video becomes a source node
+instead — which is what a filter's output port already does.
 
 ## Build
 
 Requires [Meson](https://mesonbuild.com/), Ninja, and PipeWire development
-files (`libpipewire-0.3` >= 0.3.44) discoverable via pkg-config.
+files (`libpipewire-0.3` >= 0.3.50) discoverable via pkg-config.
 
 ```sh
 meson setup build
@@ -43,6 +45,7 @@ of `include/tpw/tpw_stream.h`:
 
 ```c
 tpw_stream_h tpw_stream_create(tpw_stream_type type, tpw_stream_data_cb callback, void* user_data);
+tpw_stream_h tpw_stream_create_playback(tpw_stream_playback_cb callback, void* user_data);
 int tpw_stream_set_error_cb(tpw_stream_h stream, tpw_stream_error_cb callback);
 int tpw_stream_set_target(tpw_stream_h stream, const char* target);
 int tpw_stream_set_audio_config(tpw_stream_h stream, const tpw_audio_config* config);
@@ -86,6 +89,45 @@ typedef struct {
                     metadata. */
 } tpw_stream_buffer;
 ```
+
+### Audio playback
+
+`tpw_stream_create_playback()` makes a stream that emits to an output device
+instead of capturing from an input one. It takes no media type — a video
+playback stream cannot be expressed — and everything else is the same as a
+capture stream: `tpw_stream_set_target()` picks a specific sink (default
+otherwise), `tpw_stream_set_audio_config()` accepts the same formats and
+connects, and start/stop/destroy behave identically.
+`tpw_stream_set_video_config()` is rejected on it.
+
+The difference is the callback. Capture hands you a `const` buffer to read;
+playback hands you a writable one to fill and asks how much you wrote:
+
+```c
+typedef struct {
+    void* data;      /* writable region for this cycle */
+    size_t capacity; /* bytes you may write: what the device asked for this
+                        cycle, or the region's full size if the graph said
+                        nothing */
+    int64_t pts;     /* when this cycle's first sample is expected to be
+                        *heard*, in monotonic nanoseconds, or -1. The mirror
+                        of the capture pts: capture says when samples were
+                        taken, playback when they will be played — which is
+                        what you sync other media against. */
+    size_t size;     /* you set this: bytes actually written */
+} tpw_stream_playback_buffer;
+```
+
+A full cycle always goes out. Write less than `capacity` and the remainder is
+emitted as silence; write nothing and the cycle is silent but the stream keeps
+running. An oversized `size` is clamped, a count that is not a whole number of
+frames is floored, and both are noted in the log.
+
+The callback runs on the real-time data thread: it must not block, allocate,
+or perform I/O. A cycle whose callback overruns its budget is emitted as
+silence and logged — rate-limited to one report per second, so a persistently
+slow callback does not drown the log — and is never reported through the error
+callback, which stays reserved for the output device disappearing.
 
 ### Filters
 
@@ -289,6 +331,8 @@ tpw_log_set_callback(my_logger, NULL);
   print each buffer's size
 - `examples/video_capture.c` — capture from the default camera source and
   print each frame's size
+- `examples/audio_playback.c` — play a generated tone to the default (or a
+  chosen) output device, printing when the next samples will be heard
 - `examples/filter_mix.c` — mix two audio input ports into one audio
   output port
 - `examples/filter_signal_port.c` — feed a synthetic signal port
@@ -305,6 +349,7 @@ Run them after building:
 ```sh
 ./build/examples/audio_capture
 ./build/examples/video_capture
+./build/examples/audio_playback              # optional: a sink name from `wpctl status`
 ./build/examples/filter_mix
 ./build/examples/filter_signal_port
 ./build/examples/filter_event_port
