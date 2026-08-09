@@ -50,6 +50,32 @@ typedef struct {
  * `buf` is valid only for the duration of this call. */
 typedef void (*tpw_stream_data_cb)(tpw_stream_h stream, const tpw_stream_buffer* buf, void* user_data);
 
+/* One cycle's writable region for a playback stream. `data`, `capacity`
+ * and `pts` are set by the library; the callback sets `size`. */
+typedef struct {
+    void* data;      /* writable region for this cycle, never NULL */
+    size_t capacity; /* bytes the callback may write: what the device asked
+                        for this cycle, or the region's full size when the
+                        graph states no request */
+    int64_t pts;     /* when this cycle's first sample is expected to be
+                        heard, in monotonic nanoseconds, or -1 if the graph
+                        cannot state one. The mirror of the capture buffer's
+                        pts, not the same thing: capture reports when samples
+                        were taken, playback when they will be played. */
+    size_t size;     /* set by the callback: bytes actually written. Clamped
+                        to capacity and floored to whole frames; the
+                        remainder up to capacity is emitted as silence, so 0
+                        emits a silent cycle rather than stopping. */
+} tpw_stream_playback_buffer;
+
+/* Asks the application to fill one cycle of audio. Runs on the real-time
+ * data thread: it MUST NOT block, allocate, or perform I/O. `buf` is valid
+ * only for the duration of this call. A cycle whose callback runs past its
+ * budget is emitted as silence and recorded in the library log, not
+ * reported through tpw_stream_error_cb. */
+typedef void (*tpw_stream_playback_cb)(tpw_stream_h stream, tpw_stream_playback_buffer* buf,
+                                        void* user_data);
+
 /* Reports that `stream`'s source became unavailable while running. */
 typedef void (*tpw_stream_error_cb)(tpw_stream_h stream, int error_code, void* user_data);
 
@@ -57,6 +83,15 @@ typedef void (*tpw_stream_error_cb)(tpw_stream_h stream, int error_code, void* u
  * thread-loop/context/core internally. Fails fast (returns NULL) if
  * PipeWire cannot be reached. */
 tpw_stream_h tpw_stream_create(tpw_stream_type type, tpw_stream_data_cb callback, void* user_data);
+
+/* Creates an audio playback stream, emitting to an output device instead
+ * of capturing from an input one. Audio only: with no media type parameter
+ * a video playback stream cannot be expressed. Owns its own PipeWire
+ * thread-loop/context/core and fails fast (returns NULL) if PipeWire cannot
+ * be reached, exactly as tpw_stream_create() does. The result is used with
+ * the same set_error_cb/set_target/set_audio_config/start/stop/destroy
+ * calls; tpw_stream_set_video_config() is rejected on it. */
+tpw_stream_h tpw_stream_create_playback(tpw_stream_playback_cb callback, void* user_data);
 
 /* Registers (or clears, with NULL) the optional async-error callback. */
 int tpw_stream_set_error_cb(tpw_stream_h stream, tpw_stream_error_cb callback);
