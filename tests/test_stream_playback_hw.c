@@ -27,7 +27,7 @@ struct counters {
     unsigned cycles;
     size_t bytes_asked;
     bool saw_null_region;
-    bool saw_zero_capacity;
+    bool saw_zero_available;
     bool saw_pts;
     bool pts_advanced;
     int64_t last_pts;
@@ -41,12 +41,12 @@ static void on_fill(tpw_stream_h stream, tpw_stream_playback_buffer* buf, void* 
     (void)stream;
     struct counters* c = user_data;
     c->cycles++;
-    c->bytes_asked += buf->capacity;
+    c->bytes_asked += buf->available;
 
     if (!buf->data)
         c->saw_null_region = true;
-    if (buf->capacity == 0)
-        c->saw_zero_capacity = true;
+    if (buf->available == 0)
+        c->saw_zero_available = true;
 
     if (buf->pts >= 0) {
         if (c->saw_pts && buf->pts > c->last_pts)
@@ -55,10 +55,10 @@ static void on_fill(tpw_stream_h stream, tpw_stream_playback_buffer* buf, void* 
         c->last_pts = buf->pts;
     }
 
-    if (buf->data && buf->capacity > 0) {
+    if (buf->data && buf->available > 0) {
         static int16_t level = 3000;
         int16_t* out = buf->data;
-        size_t frames = buf->capacity / (sizeof(int16_t) * CHANNELS);
+        size_t frames = buf->available / (sizeof(int16_t) * CHANNELS);
         for (size_t i = 0; i < frames; i++) {
             if ((i % 64) == 0)
                 level = (int16_t)-level;
@@ -112,7 +112,7 @@ int main(void)
     TPW_ASSERT(c.cycles > 0);
     TPW_ASSERT(c.bytes_asked > 0);
     TPW_ASSERT(!c.saw_null_region);
-    TPW_ASSERT(!c.saw_zero_capacity);
+    TPW_ASSERT(!c.saw_zero_available);
     TPW_ASSERT_EQ(c.error_code, 0);
 
     /* A running sink knows when its samples will be heard, and that time
