@@ -105,20 +105,20 @@ playback hands you a writable one to fill and asks how much you wrote:
 
 ```c
 typedef struct {
-    void* data;      /* writable region for this cycle */
-    size_t capacity; /* bytes you may write: what the device asked for this
-                        cycle, or the region's full size if the graph said
-                        nothing */
-    int64_t pts;     /* when this cycle's first sample is expected to be
-                        *heard*, in monotonic nanoseconds, or -1. The mirror
-                        of the capture pts: capture says when samples were
-                        taken, playback when they will be played — which is
-                        what you sync other media against. */
-    size_t size;     /* you set this: bytes actually written */
+    void* data;       /* writable region for this cycle */
+    size_t available; /* bytes you may write this cycle: what the device asked
+                         for, or the region's full size if the graph said
+                         nothing. Not the region's capacity — usually less. */
+    int64_t pts;      /* when this cycle's first sample is expected to be
+                         *heard*, in monotonic nanoseconds, or -1. The mirror
+                         of the capture pts: capture says when samples were
+                         taken, playback when they will be played — which is
+                         what you sync other media against. */
+    size_t size;      /* you set this: bytes actually written */
 } tpw_stream_playback_buffer;
 ```
 
-A full cycle always goes out. Write less than `capacity` and the remainder is
+A full cycle always goes out. Write less than `available` and the remainder is
 emitted as silence; write nothing and the cycle is silent but the stream keeps
 running. An oversized `size` is clamped, a count that is not a whole number of
 frames is floored, and both are noted in the log.
