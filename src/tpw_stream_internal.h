@@ -87,10 +87,10 @@ size_t tpw_audio_bytes_per_frame(enum spa_audio_format format, int channels);
  * pw_buffer.requested, fills it via tpw_stream_playback_fill(), publishes. */
 void tpw_stream_on_process_playback(void* data);
 
-/* Runs the playback callback over `data`/`capacity`, then clamps, floors to
+/* Runs the playback callback over `data`/`available`, then clamps, floors to
  * whole frames and silences the tail. Returns the leading application bytes;
- * the caller publishes the whole capacity, whose tail this has zeroed. */
-size_t tpw_stream_playback_fill(struct tpw_stream* stream, void* data, size_t capacity, int64_t pts);
+ * the caller publishes the whole cycle, whose tail this has zeroed. */
+size_t tpw_stream_playback_fill(struct tpw_stream* stream, void* data, size_t available, int64_t pts);
 
 /* Records one overrun at `now_ns` and reports whether it should be logged;
  * false means it was folded into the suppressed count instead. */
