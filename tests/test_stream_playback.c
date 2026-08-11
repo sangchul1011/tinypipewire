@@ -15,7 +15,7 @@
 #define CHANNELS 2
 #define FRAME (2 * CHANNELS) /* S16 stereo */
 
-static size_t g_capacity;
+static size_t g_available;
 static void* g_data;
 static int64_t g_pts;
 static int g_calls;
@@ -26,11 +26,11 @@ static void fill_cb(tpw_stream_h stream, tpw_stream_playback_buffer* buf, void* 
     (void)stream;
     (void)user_data;
     g_calls++;
-    g_capacity = buf->capacity;
+    g_available = buf->available;
     g_data = buf->data;
     g_pts = buf->pts;
     if (g_report > 0)
-        memset(buf->data, 0xAB, g_report > buf->capacity ? buf->capacity : g_report);
+        memset(buf->data, 0xAB, g_report > buf->available ? buf->available : g_report);
     buf->size = g_report;
 }
 
@@ -58,7 +58,7 @@ static void test_frame_size_helper(void)
     TPW_ASSERT_EQ(tpw_audio_bytes_per_frame(SPA_AUDIO_FORMAT_UNKNOWN, 2), (size_t)0);
 }
 
-/* The callback gets a writable region and the capacity it may use, and a
+/* The callback gets a writable region and the byte count it may use, and a
  * full fill is published whole. */
 static void test_full_fill(void)
 {
@@ -71,7 +71,7 @@ static void test_full_fill(void)
 
     TPW_ASSERT_EQ(g_calls, 1);
     TPW_ASSERT(g_data == region);
-    TPW_ASSERT_EQ(g_capacity, sizeof(region));
+    TPW_ASSERT_EQ(g_available, sizeof(region));
     TPW_ASSERT_EQ(g_pts, (int64_t)1234);
     TPW_ASSERT_EQ(written, sizeof(region));
     for (size_t i = 0; i < sizeof(region); i++)
@@ -122,20 +122,20 @@ static void test_zero_fill_is_all_silence(void)
     tpw_stream_destroy((tpw_stream_h)stream);
 }
 
-/* An over-capacity report is clamped, and nothing past the region is read
+/* An oversized report is clamped, and nothing past the region is read
  * or written — the guard bytes after it must survive untouched. */
-static void test_over_capacity_is_clamped(void)
+static void test_oversized_report_is_clamped(void)
 {
     struct tpw_stream* stream = make_stream();
     unsigned char backing[FRAME * 12];
     memset(backing, 0x5A, sizeof(backing));
 
-    size_t capacity = FRAME * 8;
-    g_report = capacity * 4;
-    size_t written = tpw_stream_playback_fill(stream, backing, capacity, -1);
+    size_t available = FRAME * 8;
+    g_report = available * 4;
+    size_t written = tpw_stream_playback_fill(stream, backing, available, -1);
 
-    TPW_ASSERT_EQ(written, capacity);
-    for (size_t i = capacity; i < sizeof(backing); i++)
+    TPW_ASSERT_EQ(written, available);
+    for (size_t i = available; i < sizeof(backing); i++)
         TPW_ASSERT_EQ(backing[i], 0x5A);
 
     tpw_stream_destroy((tpw_stream_h)stream);
@@ -252,7 +252,7 @@ int main(void)
     test_full_fill();
     test_short_fill_is_silenced();
     test_zero_fill_is_all_silence();
-    test_over_capacity_is_clamped();
+    test_oversized_report_is_clamped();
     test_partial_frame_is_truncated();
     test_direction_and_video_rejection();
     test_existing_constructor_is_still_capture();
