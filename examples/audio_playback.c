@@ -29,7 +29,7 @@ static void on_fill(tpw_stream_h stream, tpw_stream_playback_buffer* buf, void* 
     double* reported = user_data;
 
     size_t frame = sizeof(int16_t) * CHANNELS;
-    size_t frames = buf->capacity / frame;
+    size_t frames = buf->available / frame;
     int16_t* out = buf->data;
 
     for (size_t i = 0; i < frames; i++) {

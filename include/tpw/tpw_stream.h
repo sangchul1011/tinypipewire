@@ -50,22 +50,25 @@ typedef struct {
  * `buf` is valid only for the duration of this call. */
 typedef void (*tpw_stream_data_cb)(tpw_stream_h stream, const tpw_stream_buffer* buf, void* user_data);
 
-/* One cycle's writable region for a playback stream. `data`, `capacity`
+/* One cycle's writable region for a playback stream. `data`, `available`
  * and `pts` are set by the library; the callback sets `size`. */
 typedef struct {
-    void* data;      /* writable region for this cycle, never NULL */
-    size_t capacity; /* bytes the callback may write: what the device asked
-                        for this cycle, or the region's full size when the
-                        graph states no request */
-    int64_t pts;     /* when this cycle's first sample is expected to be
-                        heard, in monotonic nanoseconds, or -1 if the graph
-                        cannot state one. The mirror of the capture buffer's
-                        pts, not the same thing: capture reports when samples
-                        were taken, playback when they will be played. */
-    size_t size;     /* set by the callback: bytes actually written. Clamped
-                        to capacity and floored to whole frames; the
-                        remainder up to capacity is emitted as silence, so 0
-                        emits a silent cycle rather than stopping. */
+    void* data;        /* writable region for this cycle, never NULL */
+    size_t available;  /* bytes the callback may write this cycle: what the
+                          device asked for, or the region's full size when
+                          the graph states no request. Not the region's
+                          capacity — it is usually smaller. */
+    int64_t pts;       /* when this cycle's first sample is expected to be
+                          heard, in monotonic nanoseconds, or -1 if the graph
+                          cannot state one. The mirror of the capture
+                          buffer's pts, not the same thing: capture reports
+                          when samples were taken, playback when they will be
+                          played. */
+    size_t size;       /* set by the callback: bytes actually written.
+                          Clamped to `available` and floored to whole frames;
+                          the remainder up to `available` is emitted as
+                          silence, so 0 emits a silent cycle rather than
+                          stopping. */
 } tpw_stream_playback_buffer;
 
 /* Asks the application to fill one cycle of audio. Runs on the real-time
