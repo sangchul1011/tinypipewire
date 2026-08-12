@@ -168,6 +168,7 @@ static void tpw_pw_registry_add_port(struct tpw_pw_registry* reg, uint32_t id, c
     const char* name = spa_dict_lookup(props, PW_KEY_PORT_NAME);
     const char* node_id = spa_dict_lookup(props, PW_KEY_NODE_ID);
     const char* dir = spa_dict_lookup(props, PW_KEY_PORT_DIRECTION);
+    const char* ordinal = spa_dict_lookup(props, PW_KEY_PORT_ID);
     if (!name || !node_id)
         return;
 
@@ -189,7 +190,11 @@ static void tpw_pw_registry_add_port(struct tpw_pw_registry* reg, uint32_t id, c
     /* PipeWire names a port's direction from the port's own point of view:
      * "out" is a source that can feed someone else's input. */
     e->direction = (dir && strcmp(dir, "out") == 0) ? SPA_DIRECTION_OUTPUT : SPA_DIRECTION_INPUT;
+    e->ordinal = ordinal ? (uint32_t)strtoul(ordinal, NULL, 10) : 0;
     reg->n_ports++;
+
+    if (reg->port_added_cb)
+        reg->port_added_cb(reg->port_added_data, e->node_id);
 }
 
 static void tpw_pw_registry_on_global(void* data, uint32_t id, uint32_t permissions, const char* type,
@@ -357,4 +362,31 @@ uint32_t tpw_pw_registry_find_port(const struct tpw_pw_registry* reg, uint32_t n
             return e->id;
     }
     return 0;
+}
+
+size_t tpw_pw_registry_list_ports(const struct tpw_pw_registry* reg, uint32_t node_id,
+                                   enum spa_direction direction, const struct tpw_pw_port_entry** out,
+                                   size_t max)
+{
+    if (!reg)
+        return 0;
+
+    size_t found = 0;
+    for (size_t i = 0; i < reg->n_ports; i++) {
+        const struct tpw_pw_port_entry* e = &reg->ports[i];
+        if (e->node_id != node_id || e->direction != direction)
+            continue;
+        found++;
+        if (!out || found > max)
+            continue;
+        /* Insertion sort by ordinal: registry order is arrival order, and a
+         * node rarely has more than a handful of ports per direction. */
+        size_t at = found - 1;
+        while (at > 0 && out[at - 1]->ordinal > e->ordinal) {
+            out[at] = out[at - 1];
+            at--;
+        }
+        out[at] = e;
+    }
+    return found;
 }
