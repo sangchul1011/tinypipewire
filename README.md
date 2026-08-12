@@ -129,6 +129,64 @@ silence and logged — rate-limited to one report per second, so a persistently
 slow callback does not drown the log — and is never reported through the error
 callback, which stays reserved for the output device disappearing.
 
+### Wiring a stream yourself
+
+By default a stream declares itself for automatic connection and the session
+manager (WirePlumber, typically) decides what it links to; `tpw_stream_set_target()`
+is a *hint* to that decision. On a system running no session manager, nothing
+makes the decision and the stream connects to nothing at all.
+
+Three calls let an application do the wiring instead:
+
+```c
+int tpw_stream_set_autoconnect(tpw_stream_h stream, bool enable);
+int tpw_stream_link(tpw_stream_h stream, const char* target);
+int tpw_stream_unlink(tpw_stream_h stream);
+```
+
+```c
+tpw_stream_h s = tpw_stream_create(TPW_STREAM_TYPE_AUDIO, on_data, NULL);
+tpw_stream_set_autoconnect(s, false);        /* before the format */
+tpw_stream_set_audio_config(s, &cfg);
+tpw_stream_start(s);                          /* the graph is where we look */
+tpw_stream_link(s, "alsa_input.usb-046d_C922...analog-stereo");
+```
+
+`tpw_stream_link()` comes *after* `tpw_stream_start()`, unlike every other
+setup call: both the target and the stream's own ports are resolved in the
+running graph, and the ports appear a moment after the stream starts. Channels
+are paired by position, so a stereo stream reaches a stereo device's two ports
+without naming any of them. The call blocks until every link negotiates, and if
+any channel fails none is left behind.
+
+A device with **fewer** channels than the stream is rejected outright — a
+stream never ends up half-wired. A device with **more** succeeds, leaving the
+surplus unconnected and saying so in the log, since a mono stream reaching one
+side of a stereo device otherwise looks like a fault.
+
+Links live from `tpw_stream_link()` until `tpw_stream_unlink()` or
+`tpw_stream_destroy()`. **`tpw_stream_stop()` does not release them**, so a
+stopped stream resumes on the same device rather than silently running
+unconnected.
+
+Automatic connection stays on unless you turn it off, so existing code is
+unaffected. The two modes are mutually exclusive: combining
+`tpw_stream_set_target()` with `tpw_stream_set_autoconnect(false)` returns
+`TPW_STREAM_ERR_INVALID_ARG`, whichever you call second.
+
+Choosing manual wiring takes on three things the session manager otherwise
+handles:
+
+- **Channel order.** Pairing is positional, and an unnegotiated stream's ports
+  carry no channel identity, so the library cannot verify that your channel 0
+  is the left channel.
+- **Reconnection.** When a linked device disappears the error callback fires
+  with `TPW_STREAM_ERR_SOURCE_UNAVAILABLE` and nothing re-routes; linking
+  somewhere else is your decision.
+- **Device availability.** On a system with no session manager the device nodes
+  themselves must come from somewhere — the daemon's own configuration, for
+  instance. This controls wiring, not what devices exist.
+
 ### Filters
 
 `include/tpw/tpw_filter.h` adds a second handle, `tpw_filter_h`, for
@@ -333,6 +391,9 @@ tpw_log_set_callback(my_logger, NULL);
   print each frame's size
 - `examples/audio_playback.c` — play a generated tone to the default (or a
   chosen) output device, printing when the next samples will be heard
+- `examples/stream_manual_link.c` — wire a capture stream to a named device
+  with no session manager involved, pausing so the graph can be inspected
+  before and after
 - `examples/filter_mix.c` — mix two audio input ports into one audio
   output port
 - `examples/filter_signal_port.c` — feed a synthetic signal port
@@ -350,6 +411,8 @@ Run them after building:
 ./build/examples/audio_capture
 ./build/examples/video_capture
 ./build/examples/audio_playback              # optional: a sink name from `wpctl status`
+# takes a device name from `wpctl status`; a second one re-targets
+./build/examples/stream_manual_link <device> [other-device]
 ./build/examples/filter_mix
 ./build/examples/filter_signal_port
 ./build/examples/filter_event_port
