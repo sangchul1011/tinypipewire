@@ -64,6 +64,12 @@ struct tpw_stream {
 
     char* target; /* PW_KEY_TARGET_OBJECT, or NULL for auto-connect */
 
+    /* Manual routing. `autoconnect` is true unless the application said it
+     * would wire the stream itself; the rest is unused until it links. */
+    bool autoconnect;
+    struct tpw_pw_registry registry;
+    struct tpw_stream_link_set* links;
+
     struct tpw_pw_core_conn conn;
     struct pw_stream* pw_stream;
 
@@ -95,6 +101,31 @@ size_t tpw_stream_playback_fill(struct tpw_stream* stream, void* data, size_t av
 /* Records one overrun at `now_ns` and reports whether it should be logged;
  * false means it was folded into the suppressed count instead. */
 bool tpw_stream_playback_note_overrun(struct tpw_stream* stream, uint64_t now_ns);
+
+/* One stream channel joined to one device port. */
+struct tpw_stream_link {
+    struct pw_proxy* proxy;
+    struct spa_hook listener;
+    struct tpw_stream* stream;
+    bool seen_active;
+    bool lost;
+};
+
+/* Every link joining one stream to one device, created and released as a
+ * unit. NULL on the stream means unlinked. */
+struct tpw_stream_link_set {
+    struct tpw_stream_link* links;
+    size_t n_links;
+    uint32_t target_node_id;
+};
+
+/* Pairs `n_stream` stream ports with `n_target` device ports by position.
+ * Returns the number of pairs to create, or 0 when the device cannot satisfy
+ * the stream; `surplus` receives how many device ports are left over. */
+size_t tpw_stream_pair_ports(size_t n_stream, size_t n_target, size_t* surplus);
+
+/* Releases every link on `stream` and clears the set. Safe when unlinked. */
+void tpw_stream_release_links(struct tpw_stream* stream);
 
 /* .state_changed callback registered on the underlying pw_stream; detects
  * the source-lost transition and invokes error_cb. Exposed (non-static) so

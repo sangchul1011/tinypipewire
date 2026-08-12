@@ -4,6 +4,7 @@ tinypipewire_sources = files(
   'tpw_spa_format.c',
   'tpw_stream.c',
   'tpw_stream_playback.c',
+  'tpw_stream_routing.c',
   'tpw_buffer.c',
   'tpw_audio_format.c',
   'tpw_video_format.c',

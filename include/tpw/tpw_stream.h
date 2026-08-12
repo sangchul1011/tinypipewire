@@ -3,6 +3,7 @@
 #ifndef TPW_STREAM_H
 #define TPW_STREAM_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -104,8 +105,49 @@ int tpw_stream_set_error_cb(tpw_stream_h stream, tpw_stream_error_cb callback);
  * `pw-cli ls Node`). Must be called before
  * tpw_stream_set_audio_config()/tpw_stream_set_video_config(), which is
  * what actually connects the stream. If never called, the stream
- * auto-connects to PipeWire's default source for its media type. */
+ * auto-connects to PipeWire's default source for its media type.
+ *
+ * This is a hint to the session manager, which does the wiring, so it is
+ * meaningful only while autoconnect is on. Mutually exclusive with
+ * tpw_stream_set_autoconnect(false): whichever of the two is called second
+ * returns TPW_STREAM_ERR_INVALID_ARG. */
 int tpw_stream_set_target(tpw_stream_h stream, const char* target);
+
+/* Turns automatic connection off, so the application wires the stream
+ * itself with tpw_stream_link(). On by default, which is what every
+ * existing caller already gets. Must be called before the format is set;
+ * the routing mode is fixed once the stream connects. Mutually exclusive
+ * with tpw_stream_set_target(): whichever of the two is called second
+ * returns TPW_STREAM_ERR_INVALID_ARG. */
+int tpw_stream_set_autoconnect(tpw_stream_h stream, bool enable);
+
+/* Connects every channel of `stream` to `target` — a node name or an
+ * object.serial — with PipeWire core links, needing no session manager.
+ * Channels are paired by position, so a stereo stream reaches a stereo
+ * device's two ports without the caller naming any of them.
+ *
+ * Requires autoconnect to be off, and must be called after
+ * tpw_stream_start(): the target and the stream's own ports are both
+ * resolved in the running graph, and the ports appear shortly after the
+ * stream starts. Blocks until every link negotiates; on any channel
+ * failing, none is left behind.
+ *
+ * A device offering more channels than the stream has is not an error:
+ * the surplus stay unconnected and the condition is logged, since a mono
+ * stream reaching one side of a stereo device looks like a fault. A
+ * device offering fewer is rejected outright.
+ *
+ * Returns 0, or a tpw_stream_error: NOT_CONFIGURED before start,
+ * INVALID_ARG for a bad mode/target/channel count or an already-linked
+ * stream, CONNECT_FAILED when negotiation fails or times out. */
+int tpw_stream_link(tpw_stream_h stream, const char* target);
+
+/* Releases every link created on `stream`. tpw_stream_destroy() does this
+ * itself, so an explicit call is only needed to re-target a stream.
+ * tpw_stream_stop() deliberately does NOT release: a stopped stream
+ * resumes on the same device when started again. Returns 0, or
+ * TPW_STREAM_ERR_INVALID_ARG when the stream has no links. */
+int tpw_stream_unlink(tpw_stream_h stream);
 
 /* Audio capture configuration passed to tpw_stream_set_audio_config()
  * and tpw_filter_add_audio_port(). */

@@ -71,6 +71,7 @@ static struct tpw_stream* tpw_stream_alloc(tpw_stream_type type, enum tpw_stream
     stream->direction = direction;
     stream->state = TPW_STREAM_STATE_CREATED;
     stream->user_data = user_data;
+    stream->autoconnect = true; /* the session manager wires us unless told otherwise */
 
     if (tpw_pw_core_connect(&stream->conn, "tpw-stream-loop") < 0) {
         tpw_stream_teardown(stream);
@@ -137,11 +138,14 @@ int tpw_stream_internal_connect(struct tpw_stream* stream, const struct spa_pod*
     pw_stream_add_listener(stream->pw_stream, &stream->stream_listener,
                             playback ? &tpw_stream_playback_events : &tpw_stream_events, stream);
 
+    /* Without AUTOCONNECT the node carries no node.autoconnect property, which
+     * is what tells a session manager to leave the wiring to us. */
+    enum pw_stream_flags flags = PW_STREAM_FLAG_MAP_BUFFERS | PW_STREAM_FLAG_RT_PROCESS;
+    if (stream->autoconnect)
+        flags |= PW_STREAM_FLAG_AUTOCONNECT;
+
     int res = pw_stream_connect(stream->pw_stream, playback ? PW_DIRECTION_OUTPUT : PW_DIRECTION_INPUT,
-                                 PW_ID_ANY,
-                                 PW_STREAM_FLAG_AUTOCONNECT | PW_STREAM_FLAG_MAP_BUFFERS |
-                                     PW_STREAM_FLAG_RT_PROCESS,
-                                 params, n_params);
+                                 PW_ID_ANY, flags, params, n_params);
     if (res < 0) {
         pw_stream_destroy(stream->pw_stream);
         stream->pw_stream = NULL;
@@ -167,11 +171,30 @@ int tpw_stream_set_error_cb(tpw_stream_h handle, tpw_stream_error_cb callback)
     return TPW_STREAM_OK;
 }
 
+int tpw_stream_set_autoconnect(tpw_stream_h handle, bool enable)
+{
+    struct tpw_stream* stream = (struct tpw_stream*)handle;
+    if (!stream)
+        return TPW_STREAM_ERR_INVALID_ARG;
+    /* The routing mode is fixed once the format has connected the stream. */
+    if (stream->pw_stream)
+        return TPW_STREAM_ERR_INVALID_ARG;
+    /* A target is a hint to the session manager, so it means nothing once the
+     * application takes the wiring over. */
+    if (!enable && stream->target)
+        return TPW_STREAM_ERR_INVALID_ARG;
+
+    stream->autoconnect = enable;
+    return TPW_STREAM_OK;
+}
+
 int tpw_stream_set_target(tpw_stream_h handle, const char* target)
 {
     struct tpw_stream* stream = (struct tpw_stream*)handle;
     if (!stream)
         return TPW_STREAM_ERR_INVALID_ARG;
+    if (target && *target && !stream->autoconnect)
+        return TPW_STREAM_ERR_INVALID_ARG; /* see tpw_stream_set_autoconnect() */
 
     char* copy = NULL;
     if (target && *target) {
@@ -226,6 +249,16 @@ void tpw_stream_destroy(tpw_stream_h handle)
     if (stream->state == TPW_STREAM_STATE_RUNNING)
         tpw_stream_stop(handle);
 
+    /* Destroy releases the wiring; stop deliberately does not, so a stopped
+     * stream resumes on the same device. The registry must go while the loop
+     * still runs and under its lock, since destroying a proxy talks to the
+     * server. */
+    tpw_stream_release_links(stream);
+    if (stream->conn.loop) {
+        pw_thread_loop_lock(stream->conn.loop);
+        tpw_pw_registry_teardown(&stream->registry);
+        pw_thread_loop_unlock(stream->conn.loop);
+    }
     tpw_stream_teardown(stream);
     free(stream->target);
     free(stream);
