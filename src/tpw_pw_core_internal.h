@@ -34,6 +34,10 @@ struct tpw_pw_port_entry {
     uint32_t node_id;
     char* name;
     enum spa_direction direction;
+    /* The port's index within its node, numbered per direction. This is what
+     * pairs a stream's channels to a device's: an unnegotiated stream's ports
+     * carry no channel identity to match on. */
+    uint32_t ordinal;
 };
 
 /* A live view of the graph's node and port globals, kept current by a
@@ -56,6 +60,11 @@ struct tpw_pw_registry {
      * link is. */
     void (*node_removed_cb)(void* data, uint32_t id);
     void* node_removed_data;
+
+    /* Fired as each port global is cached, so an owner waiting for its own
+     * ports can wake instead of polling. Same generic shape as above. */
+    void (*port_added_cb)(void* data, uint32_t node_id);
+    void* port_added_data;
 };
 
 /* Binds `reg` to `conn`'s core and waits (bounded) for the initial burst
@@ -84,6 +93,13 @@ uint32_t tpw_pw_registry_find_node_by_serial(const struct tpw_pw_registry* reg, 
 /* Finds a port by owning node id, exact name, and direction; 0 if none. */
 uint32_t tpw_pw_registry_find_port(const struct tpw_pw_registry* reg, uint32_t node_id, const char* name,
                                     enum spa_direction direction);
+
+/* Collects every port of `node_id` in `direction`, ordered by ordinal, into
+ * `out` (up to `max`). Returns how many the node has, which may exceed `max`.
+ * For callers that know a port exists but not what it is called. */
+size_t tpw_pw_registry_list_ports(const struct tpw_pw_registry* reg, uint32_t node_id,
+                                   enum spa_direction direction, const struct tpw_pw_port_entry** out,
+                                   size_t max);
 
 /* Increments the process-wide pw_init() refcount, calling pw_init() on
  * the first call. Must be paired with tpw_pw_global_deinit(). */
