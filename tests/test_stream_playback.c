@@ -256,6 +256,8 @@ int main(void)
     test_partial_frame_is_truncated();
     test_direction_and_video_rejection();
     test_existing_constructor_is_still_capture();
+    test_target_selection();
+    test_start_requires_a_format();
     test_overrun_log_is_rate_limited();
     printf("test_stream_playback: all cases passed\n");
     return 0;
