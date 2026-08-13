@@ -74,7 +74,10 @@ static void test_autoconnect_is_the_default(void)
     tpw_stream_destroy(p);
 }
 
-/* The mode is fixed once the format has connected the stream. */
+/* The mode is fixed once the format has connected the stream. Refusing this
+ * is not a formality: by then the node exists with its autoconnect property
+ * already set, and a session manager may have wired it, so accepting the
+ * change would tell the caller something untrue. */
 static void test_mode_is_fixed_after_connect(void)
 {
     tpw_stream_h s = make_capture();
@@ -83,6 +86,23 @@ static void test_mode_is_fixed_after_connect(void)
     TPW_ASSERT_EQ(tpw_stream_set_autoconnect(s, false), TPW_STREAM_OK);
     TPW_ASSERT_EQ(tpw_stream_set_audio_config(s, &cfg), TPW_STREAM_OK);
     TPW_ASSERT_EQ(tpw_stream_set_autoconnect(s, true), TPW_STREAM_ERR_INVALID_ARG);
+
+    tpw_stream_destroy(s);
+}
+
+/* Video connects through a different config call, so it gets the same rule
+ * checked separately — in both directions, since the mode is fixed by the
+ * stream being connected rather than by which way it was set. */
+static void test_mode_is_fixed_after_video_connect(void)
+{
+    tpw_stream_h s = tpw_stream_create(TPW_STREAM_TYPE_VIDEO, on_data, NULL);
+    TPW_ASSERT(s != NULL);
+    tpw_video_config cfg = { .width = 640, .height = 480, .pixel_format = "YUYV", .fps = 30 };
+
+    TPW_ASSERT_EQ(tpw_stream_set_video_config(s, &cfg), TPW_STREAM_OK);
+    TPW_ASSERT_EQ(tpw_stream_set_autoconnect(s, false), TPW_STREAM_ERR_INVALID_ARG);
+    TPW_ASSERT_EQ(tpw_stream_set_autoconnect(s, true), TPW_STREAM_ERR_INVALID_ARG);
+    TPW_ASSERT(((struct tpw_stream*)s)->autoconnect); /* unchanged by the refusals */
 
     tpw_stream_destroy(s);
 }
@@ -174,6 +194,7 @@ int main(void)
     test_pairing();
     test_autoconnect_is_the_default();
     test_mode_is_fixed_after_connect();
+    test_mode_is_fixed_after_video_connect();
     test_hint_and_manual_are_exclusive();
     test_link_ordering_and_mode();
     test_unlink_without_links_is_refused();
