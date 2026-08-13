@@ -22,6 +22,10 @@ void tpw_stream_on_state_changed(void* data, enum pw_stream_state old, enum pw_s
         if (stream->error_cb)
             stream->error_cb((tpw_stream_h)stream, TPW_STREAM_ERR_SOURCE_UNAVAILABLE, stream->user_data);
     }
+
+    /* A stream's node id is only assigned once the server has seen it, so
+     * tpw_stream_link() waits on this. */
+    pw_thread_loop_signal(stream->conn.loop, false);
 }
 
 static const struct pw_stream_events tpw_stream_events = {
