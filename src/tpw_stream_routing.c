@@ -64,25 +64,34 @@ static enum spa_direction tpw_stream_own_direction(const struct tpw_stream* stre
     return stream->direction == TPW_STREAM_DIRECTION_PLAYBACK ? SPA_DIRECTION_OUTPUT : SPA_DIRECTION_INPUT;
 }
 
-/* Blocks until the registry has cached every port this stream expects, woken
- * by the port-added callback rather than by polling. */
-static int tpw_stream_await_own_ports(struct tpw_stream* stream, uint32_t node_id, size_t expected)
+/* Blocks until this stream has a node id and the registry has cached every
+ * port it expects, woken by the state-changed and port-added callbacks rather
+ * than by polling. Both arrive after start: the id when the server has seen
+ * the node, the ports a little after that. */
+static int tpw_stream_await_own_ports(struct tpw_stream* stream, size_t expected, uint32_t* out_node_id)
 {
     struct timespec deadline;
     enum spa_direction dir = tpw_stream_own_direction(stream);
+    uint32_t node_id;
 
     pw_thread_loop_lock(stream->conn.loop);
     pw_thread_loop_get_time(stream->conn.loop, &deadline, TPW_OWN_PORTS_TIMEOUT_NSEC);
 
-    while (tpw_pw_registry_list_ports(&stream->registry, node_id, dir, NULL, 0) < expected) {
+    for (;;) {
+        node_id = pw_stream_get_node_id(stream->pw_stream);
+        if (node_id != SPA_ID_INVALID &&
+            tpw_pw_registry_list_ports(&stream->registry, node_id, dir, NULL, 0) >= expected)
+            break;
+
         if (pw_thread_loop_timed_wait_full(stream->conn.loop, &deadline) < 0) {
             pw_thread_loop_unlock(stream->conn.loop);
-            tpw_log_error("stream: timed out waiting for this stream's own ports to appear");
+            tpw_log_error("stream: timed out waiting for this stream to appear in the graph");
             return TPW_STREAM_ERR_CONNECT_FAILED;
         }
     }
 
     pw_thread_loop_unlock(stream->conn.loop);
+    *out_node_id = node_id;
     return TPW_STREAM_OK;
 }
 
@@ -216,11 +225,8 @@ int tpw_stream_link(tpw_stream_h handle, const char* target)
     stream->registry.node_removed_cb = tpw_stream_on_node_removed;
     stream->registry.node_removed_data = stream;
 
-    uint32_t own_node = pw_stream_get_node_id(stream->pw_stream);
-    if (own_node == SPA_ID_INVALID)
-        return TPW_STREAM_ERR_NOT_CONFIGURED;
-
-    int res = tpw_stream_await_own_ports(stream, own_node, tpw_stream_expected_ports(stream));
+    uint32_t own_node = SPA_ID_INVALID;
+    int res = tpw_stream_await_own_ports(stream, tpw_stream_expected_ports(stream), &own_node);
     if (res < 0)
         return res;
 
