@@ -165,11 +165,58 @@ typedef struct {
     int fps;                  /* frames per second; 0 negotiates automatically */
 } tpw_video_config;
 
+/* Selects a video port/stream's buffer memory. AUTO is the default
+ * (graph-selected, normally CPU-mapped). DMABUF negotiates file
+ * descriptors instead of a CPU buffer. */
+typedef enum {
+    TPW_PORT_MEMORY_AUTO,
+    TPW_PORT_MEMORY_DMABUF
+} tpw_port_memory;
+
+/* One plane of a DMABUF-delivered frame. `fd` is borrowed (import-only,
+ * not owned): valid only for the callback that received it, do not close
+ * it. */
+typedef struct {
+    int      fd;
+    uint32_t offset;   /* byte offset to the plane within the dmabuf */
+    uint32_t stride;   /* row stride in bytes */
+    uint32_t size;     /* valid bytes of this plane */
+} tpw_dmabuf_plane;
+
 /* Configures audio format before starting an audio stream. */
 int tpw_stream_set_audio_config(tpw_stream_h stream, const tpw_audio_config* config);
 
 /* Configures video format before starting a video stream. */
 int tpw_stream_set_video_config(tpw_stream_h stream, const tpw_video_config* config);
+
+/* Per-stream DMABUF options. A NULL or zeroed struct means AUTO, i.e. the
+ * behavior of tpw_stream_set_video_config(). */
+typedef struct {
+    tpw_port_memory memory;
+} tpw_stream_dmabuf_opts;
+
+/* Configures video format before starting a video capture stream, with
+ * options. Equivalent to tpw_stream_set_video_config() when `opts` is NULL.
+ * With opts->memory == TPW_PORT_MEMORY_DMABUF, the stream negotiates DMABUF
+ * frames: tpw_stream_buffer.data is NULL for each delivered frame and
+ * planes are read via tpw_stream_buffer_dmabuf(). Video capture only - the
+ * same type/direction rejection as tpw_stream_set_video_config() applies,
+ * so calling this on an audio or playback stream returns
+ * TPW_STREAM_ERR_INVALID_ARG.
+ *
+ * If the source cannot provide DMABUF, negotiation fails asynchronously:
+ * the condition is logged and tpw_stream_error_cb (if set) is invoked with
+ * TPW_STREAM_ERR_SOURCE_UNAVAILABLE, the same path used when a source is
+ * lost after connecting. The stream delivers no frames until reconfigured
+ * without DMABUF. */
+int tpw_stream_set_video_config_ex(tpw_stream_h stream, const tpw_video_config* config,
+                                    const tpw_stream_dmabuf_opts* opts);
+
+/* Fills up to `max_planes` entries of `planes` with the current cycle's
+ * DMABUF frame layout and returns the plane count. Returns 0 for a
+ * non-DMABUF stream or a cycle with no buffer, without writing `planes`.
+ * Valid only during the data callback (tpw_stream_data_cb). */
+size_t tpw_stream_buffer_dmabuf(tpw_stream_h stream, tpw_dmabuf_plane* planes, size_t max_planes);
 
 /* Starts data delivery. Requires a format to already be set. */
 int tpw_stream_start(tpw_stream_h stream);

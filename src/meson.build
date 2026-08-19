@@ -14,6 +14,9 @@ tinypipewire_sources = files(
   'tpw_filter_event.c',
   'tpw_filter_dmabuf.c',
   'tpw_filter_port_link.c',
+  'tpw_dmabuf.c',
+  'tpw_rate_limit.c',
+  'tpw_stream_dmabuf.c',
 )
 
 tinypipewire_lib = library('tinypipewire',

@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <spa/param/param.h>
+
 #include "tpw_log_internal.h"
 #include "tpw_stream_internal.h"
 
@@ -28,9 +30,33 @@ void tpw_stream_on_state_changed(void* data, enum pw_stream_state old, enum pw_s
     pw_thread_loop_signal(stream->conn.loop, false);
 }
 
+/* Only a DMABUF-opted stream negotiates a second param after the format,
+ * so this is a no-op for every other stream. On success it pushes the
+ * deferred Buffers request; on failure it reports the same way a lost
+ * source already does. */
+static void tpw_stream_on_param_changed(void* data, uint32_t id, const struct spa_pod* param)
+{
+    struct tpw_stream* stream = data;
+    if (id != SPA_PARAM_Format || !stream->use_dmabuf)
+        return;
+
+    if (param != NULL) {
+        tpw_stream_dmabuf_update_params(stream);
+        return;
+    }
+
+    tpw_stream_dmabuf_log_unavailable(stream);
+    if (stream->state == TPW_STREAM_STATE_RUNNING) {
+        stream->state = TPW_STREAM_STATE_STOPPED;
+        if (stream->error_cb)
+            stream->error_cb((tpw_stream_h)stream, TPW_STREAM_ERR_SOURCE_UNAVAILABLE, stream->user_data);
+    }
+}
+
 static const struct pw_stream_events tpw_stream_events = {
     PW_VERSION_STREAM_EVENTS,
     .state_changed = tpw_stream_on_state_changed,
+    .param_changed = tpw_stream_on_param_changed,
     .process = tpw_stream_on_process,
 };
 
@@ -44,6 +70,11 @@ static void tpw_stream_teardown(struct tpw_stream* stream)
 {
     if (!stream)
         return;
+
+    /* See tpw_stream_internal_connect(): destroying pw_stream can itself
+     * fire param_changed with a cleared format, which must not read as a
+     * DMABUF failure during ordinary teardown. */
+    stream->use_dmabuf = false;
 
     if (stream->conn.loop && stream->pw_stream) {
         pw_thread_loop_lock(stream->conn.loop);
@@ -114,9 +145,14 @@ tpw_stream_h tpw_stream_create_playback(tpw_stream_playback_cb callback, void* u
     return (tpw_stream_h)stream;
 }
 
-int tpw_stream_internal_connect(struct tpw_stream* stream, const struct spa_pod** params, uint32_t n_params)
+int tpw_stream_internal_connect(struct tpw_stream* stream, const struct spa_pod** params, uint32_t n_params,
+                                 bool use_dmabuf)
 {
     if (stream->pw_stream) {
+        /* Destroying a connected pw_stream can itself fire param_changed
+         * with a cleared format; clearing this first keeps that read as
+         * ordinary teardown rather than a DMABUF failure. */
+        stream->use_dmabuf = false;
         pw_thread_loop_lock(stream->conn.loop);
         pw_stream_destroy(stream->pw_stream);
         stream->pw_stream = NULL;
@@ -143,8 +179,11 @@ int tpw_stream_internal_connect(struct tpw_stream* stream, const struct spa_pod*
                             playback ? &tpw_stream_playback_events : &tpw_stream_events, stream);
 
     /* Without AUTOCONNECT the node carries no node.autoconnect property, which
-     * is what tells a session manager to leave the wiring to us. */
-    enum pw_stream_flags flags = PW_STREAM_FLAG_MAP_BUFFERS | PW_STREAM_FLAG_RT_PROCESS;
+     * is what tells a session manager to leave the wiring to us. A DMABUF
+     * buffer is not CPU-mapped, so MAP_BUFFERS is omitted for it. */
+    enum pw_stream_flags flags = PW_STREAM_FLAG_RT_PROCESS;
+    if (!use_dmabuf)
+        flags |= PW_STREAM_FLAG_MAP_BUFFERS;
     if (stream->autoconnect)
         flags |= PW_STREAM_FLAG_AUTOCONNECT;
 
@@ -157,6 +196,10 @@ int tpw_stream_internal_connect(struct tpw_stream* stream, const struct spa_pod*
         tpw_log_error("stream: failed to connect (result=%d)", res);
         return TPW_STREAM_ERR_CONNECT_FAILED;
     }
+
+    /* Set only now that the new stream exists, still under the lock: no
+     * event for it can be dispatched before this line runs. */
+    stream->use_dmabuf = use_dmabuf;
 
     /* Stay paused until tpw_stream_start() is called explicitly. */
     pw_stream_set_active(stream->pw_stream, false);

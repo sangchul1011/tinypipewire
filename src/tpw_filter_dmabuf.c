@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: MIT */
 
-#include <spa/buffer/buffer.h>
 #include <spa/pod/builder.h>
 
+#include "tpw_dmabuf_internal.h"
 #include "tpw_filter_internal.h"
 #include "tpw_log_internal.h"
 #include "tpw_spa_format_internal.h"
@@ -16,21 +16,7 @@ size_t tpw_filter_port_buffer_dmabuf(const tpw_filter_port_buffer* buf, tpw_dmab
     if (!port || !port->use_dmabuf || !port->current_dmabuf_buf)
         return 0;
 
-    struct spa_buffer* b = port->current_dmabuf_buf;
-    size_t count = 0;
-    for (uint32_t i = 0; i < b->n_datas; i++) {
-        struct spa_data* d = &b->datas[i];
-        if (d->type != SPA_DATA_DmaBuf)
-            continue;
-        if (planes && count < max_planes) {
-            planes[count].fd = (int)d->fd;
-            planes[count].offset = d->mapoffset;
-            planes[count].stride = d->chunk ? (uint32_t)d->chunk->stride : 0;
-            planes[count].size = d->chunk ? d->chunk->size : d->maxsize;
-        }
-        count++;
-    }
-    return count;
+    return tpw_dmabuf_extract_planes(port->current_dmabuf_buf, planes, max_planes);
 }
 
 void tpw_filter_dmabuf_update_params(struct tpw_filter_port* port)

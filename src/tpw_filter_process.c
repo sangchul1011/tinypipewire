@@ -5,6 +5,7 @@
 #include <spa/buffer/buffer.h>
 #include <spa/buffer/meta.h>
 
+#include "tpw_dmabuf_internal.h"
 #include "tpw_filter_internal.h"
 
 #define TPW_FILTER_STACK_PORTS 8
@@ -27,10 +28,9 @@ static bool tpw_filter_input_buffer_present(struct tpw_filter_port* port, struct
 {
     if (!b || b->buffer->n_datas == 0)
         return false;
-    struct spa_data* d = &b->buffer->datas[0];
     if (port->use_dmabuf)
-        return d->type == SPA_DATA_DmaBuf;
-    return d->data != NULL;
+        return tpw_dmabuf_buffer_present(b->buffer);
+    return b->buffer->datas[0].data != NULL;
 }
 
 void tpw_filter_on_process(void* data, struct spa_io_position* position)

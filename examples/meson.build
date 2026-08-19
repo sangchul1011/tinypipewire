@@ -9,6 +9,10 @@ executable('video_capture', 'video_capture.c',
   dependencies: [tinypipewire_dep],
 )
 
+executable('video_capture_dmabuf', 'video_capture_dmabuf.c',
+  dependencies: [tinypipewire_dep],
+)
+
 executable('audio_playback', 'audio_playback.c',
   dependencies: [tinypipewire_dep, m_dep],
 )

@@ -57,6 +57,15 @@ struct tpw_stream {
     uint64_t unusable_last_log_ns;
     uint64_t unusable_suppressed;
 
+    /* Video capture only, cycle-scoped: current_dmabuf_buf/dmabuf_retrieved
+     * are set before the data callback and cleared after. The rate-limit
+     * pair below tracks an unretrieved descriptor, not the buffer above. */
+    bool use_dmabuf;
+    struct spa_buffer* current_dmabuf_buf;
+    bool dmabuf_retrieved;
+    uint64_t dmabuf_unretrieved_last_log_ns;
+    uint64_t dmabuf_unretrieved_suppressed;
+
     tpw_stream_data_cb data_cb;
     tpw_stream_playback_cb playback_cb;
     tpw_stream_error_cb error_cb;
@@ -77,9 +86,10 @@ struct tpw_stream {
 };
 
 /* (Re)connects the underlying pw_stream with the given negotiated format
- * params. Destroys any previously connected pw_stream first. Must be
- * called with stream->loop NOT locked by the caller. */
-int tpw_stream_internal_connect(struct tpw_stream* stream, const struct spa_pod** params, uint32_t n_params);
+ * params, destroying any previous one first. `use_dmabuf` omits
+ * PW_STREAM_FLAG_MAP_BUFFERS. Must be called with stream->loop unlocked. */
+int tpw_stream_internal_connect(struct tpw_stream* stream, const struct spa_pod** params, uint32_t n_params,
+                                 bool use_dmabuf);
 
 /* .process callback registered on the underlying pw_stream; dequeues a
  * buffer, hands it to the caller's data_cb, and queues it back. */
@@ -101,6 +111,23 @@ size_t tpw_stream_playback_fill(struct tpw_stream* stream, void* data, size_t av
 /* Records one overrun at `now_ns` and reports whether it should be logged;
  * false means it was folded into the suppressed count instead. */
 bool tpw_stream_playback_note_overrun(struct tpw_stream* stream, uint64_t now_ns);
+
+/* Current monotonic time in nanoseconds (CLOCK_MONOTONIC). */
+uint64_t tpw_monotonic_ns(void);
+
+/* Whether a repeating condition should be logged now rather than folded
+ * into `suppressed`: true no more than once per log interval, and always
+ * on the first call (`*last_log_ns == 0`). */
+bool tpw_rate_limited(uint64_t* last_log_ns, uint64_t* suppressed, uint64_t now_ns);
+
+/* Pushes the DMABUF Buffers param on a DMABUF-opted stream via
+ * pw_stream_update_params(); a no-op otherwise. Called from
+ * param_changed once the stream's format is set. */
+void tpw_stream_dmabuf_update_params(struct tpw_stream* stream);
+
+/* Logs (WARNING) that a DMABUF stream's source could not provide DMABUF,
+ * so the stream delivers no frames. A no-op for a non-DMABUF stream. */
+void tpw_stream_dmabuf_log_unavailable(struct tpw_stream* stream);
 
 /* One stream channel joined to one device port. */
 struct tpw_stream_link {

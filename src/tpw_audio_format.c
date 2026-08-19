@@ -37,7 +37,7 @@ int tpw_stream_set_audio_config(tpw_stream_h handle, const tpw_audio_config* con
     params[0] = tpw_spa_build_audio_format(&b, config, fmt);
     params[1] = tpw_spa_build_meta_header(&b);
 
-    int res = tpw_stream_internal_connect(stream, params, 2);
+    int res = tpw_stream_internal_connect(stream, params, 2, false);
     if (res < 0)
         return res;
 
