@@ -132,12 +132,12 @@ tpw_filter_port_h tpw_filter_add_video_port_ex(tpw_filter_h filter, tpw_filter_p
                                                 const tpw_video_config* config,
                                                 const tpw_filter_port_opts* opts);
 
-/* Fills up to `max_planes` entries of `planes` with the current cycle's
+/* Fills up to `planes_len` entries of `planes` with the current cycle's
  * DMABUF frame layout for `buf` and returns the plane count. Returns 0 for
  * a non-DMABUF port or a cycle with no buffer, without writing `planes`.
  * Valid only during the processing callback. */
 size_t tpw_filter_port_buffer_dmabuf(const tpw_filter_port_buffer* buf,
-                                      tpw_dmabuf_plane* planes, size_t max_planes);
+                                      tpw_dmabuf_plane* planes, size_t planes_len);
 
 /* Enables (or disables) single-buffer "hold" on an input `port`: on a cycle
  * where the port receives no new data, its most recent buffer is

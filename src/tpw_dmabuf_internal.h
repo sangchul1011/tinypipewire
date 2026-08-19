@@ -15,9 +15,9 @@
  * always NULL. Shared by tpw_filter and tpw_stream. */
 bool tpw_dmabuf_buffer_present(struct spa_buffer* b);
 
-/* Fills up to `max_planes` entries of `planes` with every DMABUF-typed
+/* Fills up to `planes_len` entries of `planes` with every DMABUF-typed
  * plane of `b` and returns the plane count. Shared by tpw_filter and
  * tpw_stream. */
-size_t tpw_dmabuf_extract_planes(struct spa_buffer* b, tpw_dmabuf_plane* planes, size_t max_planes);
+size_t tpw_dmabuf_extract_planes(struct spa_buffer* b, tpw_dmabuf_plane* planes, size_t planes_len);
 
 #endif /* TPW_DMABUF_INTERNAL_H */
