@@ -8,7 +8,7 @@
 #include "tpw_spa_format_internal.h"
 
 size_t tpw_filter_port_buffer_dmabuf(const tpw_filter_port_buffer* buf, tpw_dmabuf_plane* planes,
-                                     size_t max_planes)
+                                     size_t planes_len)
 {
     if (!buf)
         return 0;
@@ -16,7 +16,7 @@ size_t tpw_filter_port_buffer_dmabuf(const tpw_filter_port_buffer* buf, tpw_dmab
     if (!port || !port->use_dmabuf || !port->current_dmabuf_buf)
         return 0;
 
-    return tpw_dmabuf_extract_planes(port->current_dmabuf_buf, planes, max_planes);
+    return tpw_dmabuf_extract_planes(port->current_dmabuf_buf, planes, planes_len);
 }
 
 void tpw_filter_dmabuf_update_params(struct tpw_filter_port* port)

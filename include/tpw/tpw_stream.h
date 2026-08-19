@@ -212,11 +212,11 @@ typedef struct {
 int tpw_stream_set_video_config_ex(tpw_stream_h stream, const tpw_video_config* config,
                                     const tpw_stream_dmabuf_opts* opts);
 
-/* Fills up to `max_planes` entries of `planes` with the current cycle's
+/* Fills up to `planes_len` entries of `planes` with the current cycle's
  * DMABUF frame layout and returns the plane count. Returns 0 for a
  * non-DMABUF stream or a cycle with no buffer, without writing `planes`.
  * Valid only during the data callback (tpw_stream_data_cb). */
-size_t tpw_stream_buffer_dmabuf(tpw_stream_h stream, tpw_dmabuf_plane* planes, size_t max_planes);
+size_t tpw_stream_buffer_dmabuf(tpw_stream_h stream, tpw_dmabuf_plane* planes, size_t planes_len);
 
 /* Starts data delivery. Requires a format to already be set. */
 int tpw_stream_start(tpw_stream_h stream);

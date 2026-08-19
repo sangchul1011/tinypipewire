@@ -9,7 +9,7 @@ bool tpw_dmabuf_buffer_present(struct spa_buffer* b)
     return b->datas[0].type == SPA_DATA_DmaBuf;
 }
 
-size_t tpw_dmabuf_extract_planes(struct spa_buffer* b, tpw_dmabuf_plane* planes, size_t max_planes)
+size_t tpw_dmabuf_extract_planes(struct spa_buffer* b, tpw_dmabuf_plane* planes, size_t planes_len)
 {
     if (!b)
         return 0;
@@ -19,7 +19,7 @@ size_t tpw_dmabuf_extract_planes(struct spa_buffer* b, tpw_dmabuf_plane* planes,
         struct spa_data* d = &b->datas[i];
         if (d->type != SPA_DATA_DmaBuf)
             continue;
-        if (planes && count < max_planes) {
+        if (planes && count < planes_len) {
             planes[count].fd = (int)d->fd;
             planes[count].offset = d->mapoffset;
             planes[count].stride = d->chunk ? (uint32_t)d->chunk->stride : 0;
