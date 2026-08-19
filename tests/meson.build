@@ -57,3 +57,18 @@ foreach name : hardware_tests
   # other or the second one fails to link.
   test(name, exe, suite: 'hardware', timeout: 60, is_parallel: false)
 endforeach
+
+# Doxygen convention check on the public headers: out-params last (an
+# out-array may be immediately followed by its own `_len` companion),
+# @param names matching the declaration, @brief/@return present, and
+# every @see resolving to a real symbol. Same script CI runs on PRs.
+python3_prog = find_program('python3', required: false)
+if python3_prog.found()
+  test('check_doxygen_conventions', python3_prog,
+    args: [
+      files('../.github/scripts/check_doxygen_conventions.py'),
+      meson.project_source_root() / 'include' / 'tpw' / 'tpw_stream.h',
+      meson.project_source_root() / 'include' / 'tpw' / 'tpw_filter.h',
+    ],
+  )
+endif
