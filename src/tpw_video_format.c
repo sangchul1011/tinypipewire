@@ -3,7 +3,8 @@
 #include "tpw_spa_format_internal.h"
 #include "tpw_stream_internal.h"
 
-int tpw_stream_set_video_config(tpw_stream_h handle, const tpw_video_config* config)
+int tpw_stream_set_video_config_ex(tpw_stream_h handle, const tpw_video_config* config,
+                                    const tpw_stream_dmabuf_opts* opts)
 {
     struct tpw_stream* stream = (struct tpw_stream*)handle;
     if (!stream || stream->type != TPW_STREAM_TYPE_VIDEO || !config || !config->pixel_format)
@@ -18,13 +19,17 @@ int tpw_stream_set_video_config(tpw_stream_h handle, const tpw_video_config* con
     if (fmt == SPA_VIDEO_FORMAT_UNKNOWN)
         return TPW_STREAM_ERR_INVALID_FORMAT;
 
+    bool use_dmabuf = opts && opts->memory == TPW_PORT_MEMORY_DMABUF;
+
     uint8_t buffer[1024];
     struct spa_pod_builder b = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
     const struct spa_pod* params[2];
     params[0] = tpw_spa_build_video_format(&b, config, fmt);
     params[1] = tpw_spa_build_meta_header(&b);
 
-    int res = tpw_stream_internal_connect(stream, params, 2);
+    /* tpw_stream_internal_connect() owns stream->use_dmabuf: it must set
+     * it only once the new pw_stream exists, not before. */
+    int res = tpw_stream_internal_connect(stream, params, 2, use_dmabuf);
     if (res < 0)
         return res;
 
@@ -34,4 +39,9 @@ int tpw_stream_set_video_config(tpw_stream_h handle, const tpw_video_config* con
     stream->format_set = true;
     stream->state = TPW_STREAM_STATE_FORMAT_SET;
     return TPW_STREAM_OK;
+}
+
+int tpw_stream_set_video_config(tpw_stream_h handle, const tpw_video_config* config)
+{
+    return tpw_stream_set_video_config_ex(handle, config, NULL);
 }

@@ -116,28 +116,12 @@ tpw_filter_port_h tpw_filter_add_audio_port(tpw_filter_h filter, tpw_filter_port
 tpw_filter_port_h tpw_filter_add_video_port(tpw_filter_h filter, tpw_filter_port_direction direction,
                                              const tpw_video_config* config);
 
-/* How a port's buffers are carried. AUTO is the pre-feature default
- * (graph-selected, normally CPU-mapped). DMABUF makes a video input port
- * negotiate DMABUF file descriptors instead of a CPU buffer. */
-typedef enum {
-    TPW_PORT_MEMORY_AUTO,
-    TPW_PORT_MEMORY_DMABUF
-} tpw_port_memory;
-
 /* Extensible per-port options. A NULL or zeroed struct means AUTO, i.e.
- * the behavior of the non-_ex add call. */
+ * the behavior of the non-_ex add call. tpw_port_memory is declared in
+ * tpw_stream.h, shared with tpw_stream_buffer_dmabuf(). */
 typedef struct {
     tpw_port_memory memory;
 } tpw_filter_port_opts;
-
-/* One plane of an imported DMABUF frame. `fd` is borrowed (import-only,
- * not owned): valid only for the processing callback, do not close it. */
-typedef struct {
-    int      fd;
-    uint32_t offset;   /* byte offset to the plane within the dmabuf */
-    uint32_t stride;   /* row stride in bytes */
-    uint32_t size;     /* valid bytes of this plane */
-} tpw_dmabuf_plane;
 
 /* Adds one video port with options. Equivalent to tpw_filter_add_video_port()
  * when `opts` is NULL. With opts->memory == TPW_PORT_MEMORY_DMABUF the port
