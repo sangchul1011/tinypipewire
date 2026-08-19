@@ -29,5 +29,11 @@ int main(void)
     TPW_ASSERT_EQ(tpw_stream_set_video_config(stream, &(tpw_video_config){ .width = 640, .height = 480, .pixel_format = "RGB", .fps = 30 }), TPW_STREAM_OK);
 
     tpw_stream_destroy(stream);
+
+    /* NV21 is recognized like the other supported pixel formats. */
+    tpw_stream_h nv21_stream = tpw_stream_create(TPW_STREAM_TYPE_VIDEO, noop_data_cb, NULL);
+    TPW_ASSERT(nv21_stream != NULL);
+    TPW_ASSERT_EQ(tpw_stream_set_video_config(nv21_stream, &(tpw_video_config){ .width = 640, .height = 480, .pixel_format = "NV21", .fps = 30 }), TPW_STREAM_OK);
+    tpw_stream_destroy(nv21_stream);
     return 0;
 }
