@@ -20,10 +20,11 @@ int tpw_stream_set_video_config(tpw_stream_h handle, const tpw_video_config* con
 
     uint8_t buffer[1024];
     struct spa_pod_builder b = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
-    const struct spa_pod* params[1];
+    const struct spa_pod* params[2];
     params[0] = tpw_spa_build_video_format(&b, config, fmt);
+    params[1] = tpw_spa_build_meta_header(&b);
 
-    int res = tpw_stream_internal_connect(stream, params, 1);
+    int res = tpw_stream_internal_connect(stream, params, 2);
     if (res < 0)
         return res;
 

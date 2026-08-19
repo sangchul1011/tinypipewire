@@ -6,6 +6,7 @@
 #include <spa/param/param.h>
 #include <spa/param/buffers.h>
 #include <spa/buffer/buffer.h>
+#include <spa/buffer/meta.h>
 
 #include "tpw_spa_format_internal.h"
 
@@ -111,4 +112,12 @@ const struct spa_pod* tpw_spa_build_dmabuf_buffers(struct spa_pod_builder* b, un
         SPA_TYPE_OBJECT_ParamBuffers, SPA_PARAM_Buffers,
         SPA_PARAM_BUFFERS_buffers,  SPA_POD_CHOICE_RANGE_Int(min_buffers, min_buffers, 32),
         SPA_PARAM_BUFFERS_dataType, SPA_POD_Int(1 << SPA_DATA_DmaBuf));
+}
+
+const struct spa_pod* tpw_spa_build_meta_header(struct spa_pod_builder* b)
+{
+    return spa_pod_builder_add_object(b,
+        SPA_TYPE_OBJECT_ParamMeta, SPA_PARAM_Meta,
+        SPA_PARAM_META_type, SPA_POD_Id(SPA_META_Header),
+        SPA_PARAM_META_size, SPA_POD_Int(sizeof(struct spa_meta_header)));
 }

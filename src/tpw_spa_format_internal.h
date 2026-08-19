@@ -45,4 +45,9 @@ const struct spa_pod* tpw_spa_build_event_format(struct spa_pod_builder* b);
  * (never at add time — crashes PipeWire 1.0.5). */
 const struct spa_pod* tpw_spa_build_dmabuf_buffers(struct spa_pod_builder* b, unsigned int extra_buffers);
 
+/* Requests SPA_META_Header on negotiated buffers, so a source that can
+ * attach a capture timestamp does so. Without this the pts in
+ * tpw_stream_buffer/tpw_filter_port_buffer is always -1. */
+const struct spa_pod* tpw_spa_build_meta_header(struct spa_pod_builder* b);
+
 #endif /* TPW_SPA_FORMAT_INTERNAL_H */
