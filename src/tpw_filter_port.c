@@ -11,7 +11,8 @@
 #include "tpw_spa_format_internal.h"
 
 static void* tpw_filter_add_port_common(struct tpw_filter* filter, tpw_filter_port_direction direction,
-                                         const struct spa_pod** params, enum pw_filter_port_flags flags)
+                                         const struct spa_pod** params, uint32_t n_params,
+                                         enum pw_filter_port_flags flags)
 {
     enum spa_direction pw_dir = (direction == TPW_FILTER_PORT_INPUT) ? SPA_DIRECTION_INPUT : SPA_DIRECTION_OUTPUT;
 
@@ -27,7 +28,7 @@ static void* tpw_filter_add_port_common(struct tpw_filter* filter, tpw_filter_po
     pw_thread_loop_lock(filter->conn.loop);
     void* port_data =
         pw_filter_add_port(filter->pw_filter, pw_dir, flags,
-                            sizeof(struct tpw_filter_port), props, params, 1);
+                            sizeof(struct tpw_filter_port), props, params, n_params);
     pw_thread_loop_unlock(filter->conn.loop);
 
     if (port_data)
@@ -56,10 +57,11 @@ tpw_filter_port_h tpw_filter_add_audio_port(tpw_filter_h handle, tpw_filter_port
 
     uint8_t buffer[1024];
     struct spa_pod_builder b = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
-    const struct spa_pod* params[1];
+    const struct spa_pod* params[2];
     params[0] = tpw_spa_build_audio_format(&b, config, fmt);
+    params[1] = tpw_spa_build_meta_header(&b);
 
-    void* port_data = tpw_filter_add_port_common(filter, direction, params, PW_FILTER_PORT_FLAG_MAP_BUFFERS);
+    void* port_data = tpw_filter_add_port_common(filter, direction, params, 2, PW_FILTER_PORT_FLAG_MAP_BUFFERS);
     if (!port_data)
         return NULL;
 
@@ -129,7 +131,7 @@ tpw_filter_port_h tpw_filter_add_signal_port(tpw_filter_h handle, tpw_filter_por
     const struct spa_pod* params[1];
     params[0] = tpw_spa_build_signal_format(&b);
 
-    void* port_data = tpw_filter_add_port_common(filter, direction, params, PW_FILTER_PORT_FLAG_MAP_BUFFERS);
+    void* port_data = tpw_filter_add_port_common(filter, direction, params, 1, PW_FILTER_PORT_FLAG_MAP_BUFFERS);
     if (!port_data)
         return NULL;
 
@@ -155,7 +157,7 @@ tpw_filter_port_h tpw_filter_add_event_port(tpw_filter_h handle, tpw_filter_port
     const struct spa_pod* params[1];
     params[0] = tpw_spa_build_event_format(&b);
 
-    void* port_data = tpw_filter_add_port_common(filter, direction, params, PW_FILTER_PORT_FLAG_MAP_BUFFERS);
+    void* port_data = tpw_filter_add_port_common(filter, direction, params, 1, PW_FILTER_PORT_FLAG_MAP_BUFFERS);
     if (!port_data)
         return NULL;
 
@@ -190,13 +192,14 @@ tpw_filter_port_h tpw_filter_add_video_port_ex(tpw_filter_h handle, tpw_filter_p
 
     uint8_t buffer[1024];
     struct spa_pod_builder b = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
-    const struct spa_pod* params[1];
+    const struct spa_pod* params[2];
     params[0] = tpw_spa_build_video_format(&b, config, fmt);
+    params[1] = tpw_spa_build_meta_header(&b);
 
     /* DMABUF buffers are not CPU-mapped, so omit MAP_BUFFERS; the DmaBuf
      * data-type is applied later in param_changed (add-time crashes 1.0.5). */
     enum pw_filter_port_flags flags = want_dmabuf ? 0 : PW_FILTER_PORT_FLAG_MAP_BUFFERS;
-    void* port_data = tpw_filter_add_port_common(filter, direction, params, flags);
+    void* port_data = tpw_filter_add_port_common(filter, direction, params, 2, flags);
     if (!port_data)
         return NULL;
 
