@@ -161,7 +161,7 @@ typedef struct {
 typedef struct {
     int width;
     int height;
-    const char* pixel_format; /* "RGB", "YUYV", "NV12", or "I420" */
+    const char* pixel_format; /* "RGB", "YUYV", "NV12", "NV21", or "I420" */
     int fps;                  /* frames per second; 0 negotiates automatically */
 } tpw_video_config;
 
