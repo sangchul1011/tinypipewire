@@ -112,7 +112,7 @@ static void write_wav_header(FILE* f, int sample_rate, int channels, int bytes_p
 }
 
 /* Writes a YUV4MPEG2 stream header. Only correct for planar 4:2:0
- * (pixel_format "I420") — the other tpw pixel formats (RGB/YUYV/NV12)
+ * (pixel_format "I420") — the other tpw pixel formats (RGB/YUYV/NV12/NV21)
  * don't map onto Y4M's colorspace tags, so callers must reject those
  * before reaching here. fps must be a fixed, known value: Y4M has no
  * way to express "auto-negotiated". */
@@ -146,7 +146,7 @@ static void print_usage(const char* prog)
         "                            explicit --fps\n"
         "      --width <px>          frame width (default: 640)\n"
         "      --height <px>         frame height (default: 480)\n"
-        "      --pixel-format <fmt>  RGB, YUYV, NV12, or I420 (default: I420)\n"
+        "      --pixel-format <fmt>  RGB, YUYV, NV12, NV21, or I420 (default: I420)\n"
         "      --fps <n>             frame rate; 0 lets the source pick it (default: 0)\n"
         "\n"
         "  -h, --help                show this help\n",

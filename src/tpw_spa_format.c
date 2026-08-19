@@ -47,6 +47,7 @@ static const struct {
     { "RGB", SPA_VIDEO_FORMAT_RGB },
     { "YUYV", SPA_VIDEO_FORMAT_YUY2 },
     { "NV12", SPA_VIDEO_FORMAT_NV12 },
+    { "NV21", SPA_VIDEO_FORMAT_NV21 },
     { "I420", SPA_VIDEO_FORMAT_I420 },
 };
 
