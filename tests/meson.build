@@ -20,6 +20,7 @@ unit_tests = [
   'test_filter_push_order',
   'test_stream_playback',
   'test_stream_routing',
+  'test_stream_dmabuf',
 ]
 
 # test_error_notification.c is a whitebox test: it reaches into
@@ -43,6 +44,7 @@ hardware_tests = [
   'test_filter_sensor_dummy_hw',
   'test_stream_playback_hw',
   'test_stream_routing_hw',
+  'test_stream_dmabuf_hw',
 ]
 
 foreach name : hardware_tests
