@@ -30,10 +30,14 @@ int main(void)
 
     tpw_stream_destroy(stream);
 
-    /* NV21 is recognized like the other supported pixel formats. */
-    tpw_stream_h nv21_stream = tpw_stream_create(TPW_STREAM_TYPE_VIDEO, noop_data_cb, NULL);
-    TPW_ASSERT(nv21_stream != NULL);
-    TPW_ASSERT_EQ(tpw_stream_set_video_config(nv21_stream, &(tpw_video_config){ .width = 640, .height = 480, .pixel_format = "NV21", .fps = 30 }), TPW_STREAM_OK);
-    tpw_stream_destroy(nv21_stream);
+    /* Every supported pixel format is recognized. */
+    static const char* supported_formats[] = { "RGB", "YUYV", "NV12", "NV21", "I420" };
+    for (size_t i = 0; i < sizeof(supported_formats) / sizeof(supported_formats[0]); i++) {
+        tpw_stream_h s = tpw_stream_create(TPW_STREAM_TYPE_VIDEO, noop_data_cb, NULL);
+        TPW_ASSERT(s != NULL);
+        TPW_ASSERT_EQ(tpw_stream_set_video_config(s, &(tpw_video_config){ .width = 640, .height = 480, .pixel_format = supported_formats[i], .fps = 30 }), TPW_STREAM_OK);
+        tpw_stream_destroy(s);
+    }
+
     return 0;
 }
