@@ -1,5 +1,11 @@
 /* SPDX-License-Identifier: MIT */
 
+/**
+ * @file tpw_filter.h
+ * @brief Multi-port PipeWire filter node: audio/video/signal/event ports
+ *        processed together on one real-time callback.
+ */
+
 #ifndef TPW_FILTER_H
 #define TPW_FILTER_H
 
@@ -13,193 +19,309 @@
 extern "C" {
 #endif
 
-/* Opaque handle to one multi-port filter. */
+/** @brief Opaque handle to one multi-port filter. */
 typedef struct tpw_filter* tpw_filter_h;
 
-/* Opaque handle to one input or output port on a filter. */
+/** @brief Opaque handle to one input or output port on a filter. */
 typedef struct tpw_filter_port* tpw_filter_port_h;
 
-/* Direction of a filter port. */
+/** @brief Direction of a filter port. */
 typedef enum {
-    TPW_FILTER_PORT_INPUT,
-    TPW_FILTER_PORT_OUTPUT
+    TPW_FILTER_PORT_INPUT,  /**< Consumes data delivered by the graph, or pushed with tpw_filter_push_port_data()/tpw_filter_port_push_event(). */
+    TPW_FILTER_PORT_OUTPUT  /**< Produces data for the graph, written from the processing callback. */
 } tpw_filter_port_direction;
 
-/* One port's buffer for a single processing cycle. `data`/`size`/
- * `capacity`/`pts` are valid only for the duration of the process
- * callback. */
+/**
+ * @brief One port's buffer for a single processing cycle.
+ *
+ * `data`/`size`/`capacity`/`pts` are valid only for the duration of the
+ * process callback.
+ */
 typedef struct {
-    tpw_filter_port_h port;
-    void* data;      /* NULL if no buffer was available this cycle */
-    size_t size;      /* input: bytes available to read.
-                          output: bytes to publish; set by the callback
-                          before returning (0 = no output this cycle) */
-    size_t capacity;  /* output ports only: max bytes `data` can hold */
-    int64_t pts;      /* input ports only: capture/presentation timestamp
-                          in nanoseconds from the source (e.g. an
-                          ALSA/V4L2 device's driver clock), or the value
-                          passed to tpw_filter_push_port_data() for
-                          pushed data. -1 if unavailable. Always -1 on
-                          output ports and on event ports (each
-                          tpw_event carries its own `offset` instead). */
-    bool fresh;       /* input ports only: true only when this buffer is
-                          new this cycle; false for a held re-presentation
-                          (see tpw_filter_port_set_hold()) or a cycle with
-                          no buffer. Always false on output ports. */
-    uint64_t seq;     /* input ports only: per-port update counter that
-                          advances only when new data arrives, so it is
-                          unchanged across held cycles and its deltas count
-                          genuinely new buffers. */
+    tpw_filter_port_h port; /**< Which port this entry describes. */
+    void* data;   /**< NULL if no buffer was available this cycle. */
+    size_t size;  /**< Input: bytes available to read. Output: bytes to publish; set by the callback before returning (0 = no output this cycle). */
+    size_t capacity; /**< Output ports only: max bytes `data` can hold. */
+    int64_t pts; /**< Input ports only: capture/presentation timestamp in nanoseconds from the source (e.g. an ALSA/V4L2 device's driver clock), or the value passed to tpw_filter_push_port_data() for pushed data. -1 if unavailable. Always -1 on output ports and on event ports (each tpw_event carries its own `offset` instead). */
+    bool fresh;  /**< Input ports only: true only when this buffer is new this cycle; false for a held re-presentation (see tpw_filter_port_set_hold()) or a cycle with no buffer. Always false on output ports. */
+    uint64_t seq; /**< Input ports only: per-port update counter that advances only when new data arrives, so it is unchanged across held cycles and its deltas count genuinely new buffers. */
 } tpw_filter_port_buffer;
 
-/* Invoked once per processing cycle with every port's buffer.
- * `buffers`/`n_buffers` are valid only for the duration of this call. */
+/**
+ * @brief Invoked once per processing cycle with every port's buffer.
+ * @param filter    The filter running this cycle.
+ * @param buffers   One entry per port; valid only for the duration of this call.
+ * @param n_buffers Number of entries in `buffers`.
+ * @param user_data The pointer passed to tpw_filter_create().
+ */
 typedef void (*tpw_filter_process_cb)(tpw_filter_h filter, tpw_filter_port_buffer* buffers,
                                        size_t n_buffers, void* user_data);
 
-/* Reports that `port` on `filter` became unavailable while running;
- * the filter's other ports are unaffected. */
+/**
+ * @brief Reports that `port` on `filter` became unavailable while
+ *        running; the filter's other ports are unaffected.
+ * @param filter     The filter owning `port`.
+ * @param port       The port that became unavailable.
+ * @param error_code A tpw_stream_error, currently always TPW_STREAM_ERR_SOURCE_UNAVAILABLE.
+ * @param user_data  The pointer passed to tpw_filter_create().
+ */
 typedef void (*tpw_filter_error_cb)(tpw_filter_h filter, tpw_filter_port_h port, int error_code,
                                      void* user_data);
 
-/* Which real wire kind an event carries. MIDI/OSC carry real MIDI/OSC
- * wire bytes for interop with other PipeWire MIDI/OSC clients;
- * PROPERTY is the general-purpose kind for anything else a caller
- * writes. UNKNOWN is read-only: it appears only on an event
- * tpw_filter_port_get_event() decoded from a control item this library
- * doesn't recognize (for example, one written by some other PipeWire
- * client using a control kind outside this set); `data`/`size` are
- * that item's raw, undecoded value bytes, and `key` is NULL. Passing
- * UNKNOWN to tpw_filter_port_push_event() is rejected. */
+/**
+ * @brief Which real wire kind an event carries.
+ *
+ * MIDI/OSC carry real MIDI/OSC wire bytes for interop with other
+ * PipeWire MIDI/OSC clients; PROPERTY is the general-purpose kind for
+ * anything else a caller writes. UNKNOWN is read-only: it appears only
+ * on an event tpw_filter_port_get_event() decoded from a control item
+ * this library doesn't recognize (for example, one written by some
+ * other PipeWire client using a control kind outside this set); `data`/
+ * `size` are that item's raw, undecoded value bytes, and `key` is NULL.
+ * Passing UNKNOWN to tpw_filter_port_push_event() is rejected.
+ */
 typedef enum {
-    TPW_EVENT_MIDI,
-    TPW_EVENT_OSC,
-    TPW_EVENT_PROPERTY,
-    TPW_EVENT_UNKNOWN
+    TPW_EVENT_MIDI,     /**< Real MIDI wire bytes. */
+    TPW_EVENT_OSC,      /**< Real OSC wire bytes. */
+    TPW_EVENT_PROPERTY, /**< General-purpose named value; `key` selects it. */
+    TPW_EVENT_UNKNOWN   /**< Read-only: an undecoded control item from another client. */
 } tpw_event_kind;
 
-/* One discrete, time-stamped item exchanged through an event port.
- * `offset` is this event's position within the current cycle, in
- * frames. `key` is meaningful only for TPW_EVENT_PROPERTY (a name from
- * the supported property vocabulary) and MUST be NULL otherwise.
- * `data`/`size` are: MIDI/OSC -> real wire-format bytes; PROPERTY ->
- * the value's raw bytes; UNKNOWN -> the raw undecoded control value's
- * bytes. Pointers are valid only for the duration of the processing
- * callback (when read from tpw_filter_port_get_event()) or the call to
- * tpw_filter_port_push_event() (the library copies what it needs from
- * a pushed event). */
+/**
+ * @brief One discrete, time-stamped item exchanged through an event port.
+ *
+ * `key` is meaningful only for TPW_EVENT_PROPERTY (a name from the
+ * supported property vocabulary) and MUST be NULL otherwise. Pointers
+ * are valid only for the duration of the processing callback (when read
+ * from tpw_filter_port_get_event()) or the call to
+ * tpw_filter_port_push_event() (the library copies what it needs from a
+ * pushed event).
+ */
 typedef struct {
-    uint32_t offset;
-    tpw_event_kind kind;
-    const char* key;
-    const void* data;
-    size_t size;
+    uint32_t offset;     /**< This event's position within the current cycle, in frames. */
+    tpw_event_kind kind; /**< MIDI, OSC, PROPERTY, or (read-only) UNKNOWN. */
+    const char* key;     /**< Property name for TPW_EVENT_PROPERTY; NULL otherwise. */
+    const void* data;   /**< MIDI/OSC: real wire-format bytes. PROPERTY: the value's raw bytes. UNKNOWN: the raw undecoded control value's bytes. */
+    size_t size;        /**< Bytes at `data`. */
 } tpw_event;
 
-/* Creates an empty filter (no ports yet), discoverable by `name` for
- * cross-application routing (name may be NULL/empty). Internally owns
- * and manages its own PipeWire thread-loop/context/core. Fails fast
- * (returns NULL) if PipeWire cannot be reached. */
+/**
+ * @brief Creates an empty filter (no ports yet), discoverable by `name`
+ *        for cross-application routing.
+ *
+ * Internally owns and manages its own PipeWire thread-loop/context/core.
+ *
+ * @param name      Discoverable node name; may be NULL/empty.
+ * @param callback  Invoked once per processing cycle after tpw_filter_start().
+ * @param user_data Passed unchanged to `callback`.
+ * @return A new filter handle, or NULL if PipeWire cannot be reached.
+ */
 tpw_filter_h tpw_filter_create(const char* name, tpw_filter_process_cb callback, void* user_data);
 
-/* Registers (or clears, with NULL) the optional per-port async-error callback. */
+/**
+ * @brief Registers (or clears, with NULL) the optional per-port
+ *        async-error callback.
+ * @param filter   The filter to configure.
+ * @param callback The callback to invoke on port loss, or NULL to clear it.
+ * @return TPW_STREAM_OK, or TPW_STREAM_ERR_INVALID_ARG for a NULL `filter`.
+ */
 int tpw_filter_set_error_cb(tpw_filter_h filter, tpw_filter_error_cb callback);
 
-/* Adds one audio port (input or output) to `filter`. Must be called
- * before tpw_filter_start(); adding ports after starting is unsupported.
- * Returns NULL on invalid arguments or an unsupported format. */
+/**
+ * @brief Adds one audio port (input or output) to `filter`.
+ *
+ * Must be called before tpw_filter_start(); adding ports after starting
+ * is unsupported.
+ *
+ * @param filter    The filter to add the port to, not yet started.
+ * @param direction TPW_FILTER_PORT_INPUT or TPW_FILTER_PORT_OUTPUT.
+ * @param config    The requested sample rate, channel count, and sample format.
+ * @return The new port handle, or NULL on invalid arguments or an unsupported format.
+ */
 tpw_filter_port_h tpw_filter_add_audio_port(tpw_filter_h filter, tpw_filter_port_direction direction,
                                              const tpw_audio_config* config);
 
-/* Adds one video port (input or output) to `filter`. Same timing and
- * failure behavior as tpw_filter_add_audio_port(). */
+/**
+ * @brief Adds one video port (input or output) to `filter`.
+ *
+ * Same timing and failure behavior as tpw_filter_add_audio_port().
+ *
+ * @param filter    The filter to add the port to, not yet started.
+ * @param direction TPW_FILTER_PORT_INPUT or TPW_FILTER_PORT_OUTPUT.
+ * @param config    The requested width, height, pixel format, and frame rate.
+ * @return The new port handle, or NULL on invalid arguments or an unsupported format.
+ */
 tpw_filter_port_h tpw_filter_add_video_port(tpw_filter_h filter, tpw_filter_port_direction direction,
                                              const tpw_video_config* config);
 
-/* Extensible per-port options. A NULL or zeroed struct means AUTO, i.e.
- * the behavior of the non-_ex add call. tpw_port_memory is declared in
- * tpw_stream.h, shared with tpw_stream_buffer_dmabuf(). */
+/**
+ * @brief Extensible per-port options.
+ *
+ * A NULL or zeroed struct means AUTO, i.e. the behavior of the non-_ex
+ * add call. tpw_port_memory is declared in tpw_stream.h, shared with
+ * tpw_stream_buffer_dmabuf().
+ */
 typedef struct {
-    tpw_port_memory memory;
+    tpw_port_memory memory; /**< AUTO (default) or DMABUF. */
 } tpw_filter_port_opts;
 
-/* Adds one video port with options. Equivalent to tpw_filter_add_video_port()
- * when `opts` is NULL. With opts->memory == TPW_PORT_MEMORY_DMABUF the port
- * (input only) negotiates DMABUF frames; its tpw_filter_port_buffer.data is
- * NULL and planes are read via tpw_filter_port_buffer_dmabuf(). Returns NULL
- * for DMABUF on an output port or an unsupported/invalid request. */
+/**
+ * @brief Adds one video port with options.
+ *
+ * Equivalent to tpw_filter_add_video_port() when `opts` is NULL. With
+ * opts->memory == TPW_PORT_MEMORY_DMABUF the port (input only) negotiates
+ * DMABUF frames; its tpw_filter_port_buffer.data is NULL and planes are
+ * read via tpw_filter_port_buffer_dmabuf().
+ *
+ * @param filter    The filter to add the port to, not yet started.
+ * @param direction TPW_FILTER_PORT_INPUT or TPW_FILTER_PORT_OUTPUT.
+ * @param config    The requested width, height, pixel format, and frame rate.
+ * @param opts      Per-port options, or NULL for AUTO.
+ * @return The new port handle, or NULL for DMABUF on an output port or an unsupported/invalid request.
+ */
 tpw_filter_port_h tpw_filter_add_video_port_ex(tpw_filter_h filter, tpw_filter_port_direction direction,
                                                 const tpw_video_config* config,
                                                 const tpw_filter_port_opts* opts);
 
-/* Fills up to `planes_len` entries of `planes` with the current cycle's
- * DMABUF frame layout for `buf` and returns the plane count. Returns 0 for
- * a non-DMABUF port or a cycle with no buffer, without writing `planes`.
- * Valid only during the processing callback. */
+/**
+ * @brief Fills up to `planes_len` entries of `planes` with the current
+ *        cycle's DMABUF frame layout for `buf`.
+ *
+ * Valid only during the processing callback. `planes` comes before
+ * `planes_len`, its own capacity, rather than after, keeping the array
+ * and its capacity adjacent even though `planes` is the out-parameter
+ * here.
+ *
+ * @param[in]  buf        The port buffer to read, from this cycle's tpw_filter_process_cb.
+ * @param[out] planes     Filled with up to `planes_len` planes, most-significant plane first.
+ * @param[in]  planes_len Capacity of `planes`.
+ * @return The plane count actually available, which may exceed `planes_len` if it was too small; 0 for a non-DMABUF port or a cycle with no buffer, and `planes` is left unwritten.
+ */
 size_t tpw_filter_port_buffer_dmabuf(const tpw_filter_port_buffer* buf,
                                       tpw_dmabuf_plane* planes, size_t planes_len);
 
-/* Enables (or disables) single-buffer "hold" on an input `port`: on a cycle
- * where the port receives no new data, its most recent buffer is
- * re-presented (same DMABUF fd) with tpw_filter_port_buffer.fresh == false,
- * instead of reporting no buffer. Exactly one buffer is retained. Must be
- * called before tpw_filter_start(). Returns 0 on success, a tpw_stream_error
- * code otherwise (wrong direction, or already started). */
+/**
+ * @brief Enables (or disables) single-buffer "hold" on an input `port`.
+ *
+ * On a cycle where the port receives no new data, its most recent buffer
+ * is re-presented (same DMABUF fd) with tpw_filter_port_buffer.fresh ==
+ * false, instead of reporting no buffer. Exactly one buffer is retained.
+ * Must be called before tpw_filter_start().
+ *
+ * @param port   An input port, not yet started.
+ * @param enable true to re-present the last buffer on an empty cycle, false to report no buffer instead.
+ * @return TPW_STREAM_OK, or a tpw_stream_error (wrong direction, or already started).
+ */
 int tpw_filter_port_set_hold(tpw_filter_port_h port, bool enable);
 
-/* Records a preferred maximum bundling period in nanoseconds, offered to
- * the graph as a requested latency (a duration, which PipeWire rescales to
- * the graph clock) at connect time; it never forces the graph's clock or
- * driver. 0 clears the hint. Must be called before tpw_filter_start().
- * Returns 0 on success, a tpw_stream_error code otherwise. */
+/**
+ * @brief Records a preferred maximum bundling period in nanoseconds,
+ *        offered to the graph as a requested latency at connect time.
+ *
+ * A duration, which PipeWire rescales to the graph clock; it never
+ * forces the graph's clock or driver. 0 clears the hint. Must be called
+ * before tpw_filter_start().
+ *
+ * @param filter        The filter to configure, not yet started.
+ * @param max_period_ns Preferred maximum bundling period in nanoseconds, or 0 to clear the hint.
+ * @return TPW_STREAM_OK, or a tpw_stream_error otherwise.
+ */
 int tpw_filter_set_period_hint(tpw_filter_h filter, uint32_t max_period_ns);
 
-/* Links an input `port` straight to a source node, needing no external
- * tool or session manager. `target` is a node name, an object.serial, or
- * "node:port"; naming only a node lets PipeWire pick a compatible port.
+/**
+ * @brief Links an input `port` straight to a source node, needing no
+ *        external tool or session manager.
+ *
  * Must be called after tpw_filter_start(), unlike the other port calls,
  * because the target is looked up in the running graph. Blocks until the
- * link negotiates. Returns 0, or a tpw_stream_error code. */
+ * link negotiates.
+ *
+ * @param port   An input port on a started filter.
+ * @param target A node name, an object.serial, or "node:port"; naming only a node lets PipeWire pick a compatible port.
+ * @return TPW_STREAM_OK, or a tpw_stream_error.
+ */
 int tpw_filter_port_link(tpw_filter_port_h port, const char* target);
 
-/* Releases the link created on `port`, which is only needed to re-target
- * it while running; stop and destroy release every link themselves. */
+/**
+ * @brief Releases the link created on `port`, which is only needed to
+ *        re-target it while running; stop and destroy release every
+ *        link themselves.
+ * @param port The linked port to unlink.
+ * @return TPW_STREAM_OK, or a tpw_stream_error when the port has no link.
+ */
 int tpw_filter_port_unlink(tpw_filter_port_h port);
 
-/* Adds one signal port (input or output) to `filter` — a continuous
- * channel of raw 32-bit float values, one value per frame of each
- * processing cycle (matching how audio port buffers are sized). No
- * format configuration is needed. Same timing and failure behavior as
- * tpw_filter_add_audio_port(). */
+/**
+ * @brief Adds one signal port (input or output) to `filter` — a
+ *        continuous channel of raw 32-bit float values, one value per
+ *        frame of each processing cycle (matching how audio port
+ *        buffers are sized).
+ *
+ * No format configuration is needed. Same timing and failure behavior
+ * as tpw_filter_add_audio_port().
+ *
+ * @param filter    The filter to add the port to, not yet started.
+ * @param direction TPW_FILTER_PORT_INPUT or TPW_FILTER_PORT_OUTPUT.
+ * @return The new port handle, or NULL on invalid arguments.
+ */
 tpw_filter_port_h tpw_filter_add_signal_port(tpw_filter_h filter, tpw_filter_port_direction direction);
 
-/* Adds one event port (input or output) to `filter` — carries zero or
- * more discrete tpw_event items per processing cycle instead of a raw
- * buffer. No format configuration is needed. Same timing and failure
- * behavior as tpw_filter_add_audio_port(). */
+/**
+ * @brief Adds one event port (input or output) to `filter` — carries
+ *        zero or more discrete tpw_event items per processing cycle
+ *        instead of a raw buffer.
+ *
+ * No format configuration is needed. Same timing and failure behavior
+ * as tpw_filter_add_audio_port().
+ *
+ * @param filter    The filter to add the port to, not yet started.
+ * @param direction TPW_FILTER_PORT_INPUT or TPW_FILTER_PORT_OUTPUT.
+ * @return The new port handle, or NULL on invalid arguments.
+ */
 tpw_filter_port_h tpw_filter_add_event_port(tpw_filter_h filter, tpw_filter_port_direction direction);
 
-/* Returns the media kind `port` was added with (AUDIO/VIDEO/SIGNAL/
- * EVENT). Valid for any port handle obtained from any add_*_port()
- * call. */
+/**
+ * @brief Returns the media kind `port` was added with (AUDIO/VIDEO/
+ *        SIGNAL/EVENT).
+ *
+ * Valid for any port handle obtained from any add_*_port() call.
+ *
+ * @param port The port to query.
+ * @return The tpw_stream_type `port` was added as.
+ */
 tpw_stream_type tpw_filter_port_get_type(tpw_filter_port_h port);
 
-/* Returns the number of events available on `port` (an input event
- * port) for the current processing cycle; 0 if none. Valid only during
- * the processing callback. */
+/**
+ * @brief Returns the number of events available on `port` (an input
+ *        event port) for the current processing cycle.
+ *
+ * Valid only during the processing callback.
+ *
+ * @param port An input event port.
+ * @return The event count for this cycle; 0 if none.
+ */
 size_t tpw_filter_port_event_count(tpw_filter_port_h port);
 
-/* Reads the event at `index` (0-based, cycle-delivery order) on `port`
- * (an input event port) into `*out`. An item of a control kind this
- * library doesn't recognize is still returned, as TPW_EVENT_UNKNOWN.
- * Valid only during the processing callback; `out`'s data/key pointers
- * are valid only for that same call. Returns 0 on success, a
- * tpw_stream_error code otherwise (invalid index, or wrong port
- * kind/direction). */
+/**
+ * @brief Reads the event at `index` (0-based, cycle-delivery order) on
+ *        `port` (an input event port) into `*out`.
+ *
+ * An item of a control kind this library doesn't recognize is still
+ * returned, as TPW_EVENT_UNKNOWN. Valid only during the processing
+ * callback; `out`'s data/key pointers are valid only for that same call.
+ *
+ * @param[in]  port  An input event port.
+ * @param[in]  index 0-based index into this cycle's delivered events.
+ * @param[out] out   Filled with the event at `index`.
+ * @return TPW_STREAM_OK, or a tpw_stream_error (invalid index, or wrong port kind/direction).
+ */
 int tpw_filter_port_get_event(tpw_filter_port_h port, size_t index, tpw_event* out);
 
-/* Adds one event to `port`'s event queue; the library copies `event`'s
- * data. Behavior depends on `port`'s direction:
+/**
+ * @brief Adds one event to `port`'s event queue; the library copies
+ *        `event`'s data.
+ *
+ * Behavior depends on `port`'s direction:
  *   - Output port: appends to the current processing cycle's outgoing
  *     events, published when the cycle ends. Must be called only from
  *     within the processing callback (its capacity is bounded by that
@@ -210,33 +332,59 @@ int tpw_filter_port_get_event(tpw_filter_port_h port, size_t index, tpw_event* o
  *     application code (for example, a test or another in-process
  *     source) to feed an event port directly. Callable anytime, not
  *     just from within the processing callback.
- * Returns 0 on success, a tpw_stream_error code otherwise (wrong port
- * kind, an invalid/unrecognized PROPERTY key, or — output ports only —
- * no room left in the current cycle's buffer). */
+ *
+ * @param port  The event port to push to.
+ * @param event The event to copy and enqueue.
+ * @return TPW_STREAM_OK, or a tpw_stream_error (wrong port kind, an invalid/unrecognized PROPERTY key, or — output ports only — no room left in the current cycle's buffer).
+ */
 int tpw_filter_port_push_event(tpw_filter_port_h port, const tpw_event* event);
 
-/* Stages `size` bytes from `data` for `port` (an input port) to be
- * delivered on the filter's next processing cycle, without creating any
- * PipeWire-level connection. Lets application code (for example, a
- * capture stream's data callback) feed a filter directly. `pts` is
- * carried through unchanged to that cycle's tpw_filter_port_buffer.pts
- * (pass -1 if the source has no timestamp, e.g. tpw_stream_data_cb's
- * own `pts` when bridging a capture stream into a filter). Only the
- * most recently pushed buffer per port is kept. Not valid for event
- * ports — use tpw_filter_port_push_event() instead. */
+/**
+ * @brief Stages `size` bytes from `data` for `port` (an input port) to
+ *        be delivered on the filter's next processing cycle, without
+ *        creating any PipeWire-level connection.
+ *
+ * Lets application code (for example, a capture stream's data callback)
+ * feed a filter directly. Only the most recently pushed buffer per port
+ * is kept. Not valid for event ports — use tpw_filter_port_push_event()
+ * instead.
+ *
+ * @param filter The filter owning `port`.
+ * @param port   An input, non-event port on `filter`.
+ * @param data   Bytes to stage; copied by the library.
+ * @param size   Bytes at `data`.
+ * @param pts    Carried through unchanged to that cycle's tpw_filter_port_buffer.pts; pass -1 if the source has no timestamp (e.g. tpw_stream_data_cb's own `pts` when bridging a capture stream into a filter).
+ * @return TPW_STREAM_OK, or a tpw_stream_error otherwise.
+ */
 int tpw_filter_push_port_data(tpw_filter_h filter, tpw_filter_port_h port, const void* data, size_t size,
                                int64_t pts);
 
-/* Starts processing. Fails if the filter has zero ports. Safe to call
- * again after stop(). */
+/**
+ * @brief Starts processing. Fails if the filter has zero ports.
+ *
+ * Safe to call again after stop().
+ *
+ * @param filter The filter to start.
+ * @return TPW_STREAM_OK, or a tpw_stream_error.
+ */
 int tpw_filter_start(tpw_filter_h filter);
 
-/* Stops processing; the filter may be restarted via tpw_filter_start(). */
+/**
+ * @brief Stops processing; the filter may be restarted via tpw_filter_start().
+ * @param filter The filter to stop.
+ * @return TPW_STREAM_OK, or a tpw_stream_error.
+ */
 int tpw_filter_stop(tpw_filter_h filter);
 
-/* Releases all resources owned by `filter`, including its ports and its
- * internal thread-loop/context, whether or not it was running. `filter`
- * and any of its port handles are invalid after this returns. */
+/**
+ * @brief Releases all resources owned by `filter`, including its ports
+ *        and its internal thread-loop/context, whether or not it was
+ *        running.
+ *
+ * `filter` and any of its port handles are invalid after this returns.
+ *
+ * @param filter The filter to destroy; NULL is a no-op.
+ */
 void tpw_filter_destroy(tpw_filter_h filter);
 
 #ifdef __cplusplus
