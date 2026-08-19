@@ -90,6 +90,10 @@ typedef struct {
 } tpw_stream_buffer;
 ```
 
+The stream requests capture-clock metadata from the source on connect, so
+`pts` is populated whenever the source provides one; -1 is the exception
+this field exists for, not the common case.
+
 ### Audio playback
 
 `tpw_stream_create_playback()` makes a stream that emits to an output device
@@ -186,6 +190,35 @@ handles:
 - **Device availability.** On a system with no session manager the device nodes
   themselves must come from somewhere — the daemon's own configuration, for
   instance. This controls wiring, not what devices exist.
+
+### DMABUF capture
+
+A video capture stream can opt into receiving DMABUF file descriptors
+instead of CPU-mapped frames, so a single-consumer application (an encoder,
+a GPU import path) never has to build a `tpw_filter` just to forward one
+input:
+
+```c
+typedef struct { tpw_port_memory memory; } tpw_stream_dmabuf_opts;
+
+int tpw_stream_set_video_config_ex(tpw_stream_h stream, const tpw_video_config* config,
+                                    const tpw_stream_dmabuf_opts* opts);
+size_t tpw_stream_buffer_dmabuf(tpw_stream_h stream, tpw_dmabuf_plane* planes, size_t max_planes);
+```
+
+`tpw_stream_set_video_config_ex()` with `opts->memory == TPW_PORT_MEMORY_DMABUF`
+requests DMABUF-capable capture; `opts == NULL` is exactly
+`tpw_stream_set_video_config()`, unchanged. On a DMABUF stream every
+delivered `tpw_stream_buffer.data` is NULL — read the frame's planes with
+`tpw_stream_buffer_dmabuf()`, which returns the plane count and fills
+`fd`/`offset`/`stride`/`size` per plane (one for RGB/YUYV, more for planar
+formats like NV12/I420). It returns 0 for a non-DMABUF stream, never
+fabricating an fd, and the `fd` is borrowed for the callback only. If the
+source cannot provide DMABUF, the stream delivers no frames and
+`tpw_stream_error_cb` fires with `TPW_STREAM_ERR_SOURCE_UNAVAILABLE` —
+there is no silent fallback to CPU-mapped delivery. This capability is
+video-capture-only; requesting it on an audio or playback stream is
+rejected the same way an ordinary video config is.
 
 ### Filters
 
@@ -389,6 +422,8 @@ tpw_log_set_callback(my_logger, NULL);
   print each buffer's size
 - `examples/video_capture.c` — capture from the default camera source and
   print each frame's size
+- `examples/video_capture_dmabuf.c` — capture from the default camera as
+  DMABUF and print each frame's plane fd/stride
 - `examples/audio_playback.c` — play a generated tone to the default (or a
   chosen) output device, printing when the next samples will be heard
 - `examples/stream_manual_link.c` — wire a capture stream to a named device
@@ -410,6 +445,7 @@ Run them after building:
 ```sh
 ./build/examples/audio_capture
 ./build/examples/video_capture
+./build/examples/video_capture_dmabuf
 ./build/examples/audio_playback              # optional: a sink name from `wpctl status`
 # takes a device name from `wpctl status`; a second one re-targets
 ./build/examples/stream_manual_link <device> [other-device]
