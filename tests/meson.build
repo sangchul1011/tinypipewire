@@ -45,6 +45,7 @@ hardware_tests = [
   'test_stream_playback_hw',
   'test_stream_routing_hw',
   'test_stream_dmabuf_hw',
+  'test_stream_capture_hw',
 ]
 
 foreach name : hardware_tests
