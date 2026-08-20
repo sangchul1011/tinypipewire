@@ -31,13 +31,20 @@ int main(void)
     tpw_stream_destroy(stream);
 
     /* Every supported pixel format is recognized. */
-    static const char* supported_formats[] = { "RGB", "YUYV", "NV12", "NV21", "I420" };
+    static const char* supported_formats[] = { "RGB", "YUYV", "NV12", "NV21", "I420", "MJPG" };
     for (size_t i = 0; i < sizeof(supported_formats) / sizeof(supported_formats[0]); i++) {
         tpw_stream_h s = tpw_stream_create(TPW_STREAM_TYPE_VIDEO, noop_data_cb, NULL);
         TPW_ASSERT(s != NULL);
         TPW_ASSERT_EQ(tpw_stream_set_video_config(s, &(tpw_video_config){ .width = 640, .height = 480, .pixel_format = supported_formats[i], .fps = 30 }), TPW_STREAM_OK);
         tpw_stream_destroy(s);
     }
+
+    /* Only the FourCC spelling "MJPG" is recognized, not "MJPEG". */
+    tpw_stream_h mjpeg_spelling = tpw_stream_create(TPW_STREAM_TYPE_VIDEO, noop_data_cb, NULL);
+    TPW_ASSERT(mjpeg_spelling != NULL);
+    TPW_ASSERT_EQ(tpw_stream_set_video_config(mjpeg_spelling, &(tpw_video_config){ .width = 640, .height = 480, .pixel_format = "MJPEG", .fps = 30 }),
+                  TPW_STREAM_ERR_INVALID_FORMAT);
+    tpw_stream_destroy(mjpeg_spelling);
 
     return 0;
 }
