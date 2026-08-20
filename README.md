@@ -424,6 +424,8 @@ tpw_log_set_callback(my_logger, NULL);
   print each frame's size
 - `examples/video_capture_dmabuf.c` — capture from the default camera as
   DMABUF and print each frame's plane fd/stride
+- `examples/video_capture_mjpeg.c` — capture MJPEG from the default camera
+  and print each frame's (varying) size
 - `examples/audio_playback.c` — play a generated tone to the default (or a
   chosen) output device, printing when the next samples will be heard
 - `examples/stream_manual_link.c` — wire a capture stream to a named device
@@ -446,6 +448,7 @@ Run them after building:
 ./build/examples/audio_capture
 ./build/examples/video_capture
 ./build/examples/video_capture_dmabuf
+./build/examples/video_capture_mjpeg
 ./build/examples/audio_playback              # optional: a sink name from `wpctl status`
 # takes a device name from `wpctl status`; a second one re-targets
 ./build/examples/stream_manual_link <device> [other-device]
