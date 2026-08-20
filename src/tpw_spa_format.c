@@ -87,6 +87,23 @@ const struct spa_pod* tpw_spa_build_video_format(struct spa_pod_builder* b, cons
     return spa_pod_builder_pop(b, &f);
 }
 
+bool tpw_spa_pixel_format_is_mjpg(const char* name)
+{
+    return strcmp(name, "MJPG") == 0;
+}
+
+const struct spa_pod* tpw_spa_build_video_format_mjpg(struct spa_pod_builder* b, const tpw_video_config* config)
+{
+    /* MJPEG has no raw pixel-layout enum, so it gets its own POD shape
+     * instead of going through tpw_spa_build_video_format(). */
+    struct spa_video_info_mjpg info = {
+        .size = SPA_RECTANGLE((uint32_t)config->width, (uint32_t)config->height),
+    };
+    if (config->fps > 0)
+        info.framerate = SPA_FRACTION((uint32_t)config->fps, 1);
+    return spa_format_video_mjpg_build(b, SPA_PARAM_EnumFormat, &info);
+}
+
 const struct spa_pod* tpw_spa_build_signal_format(struct spa_pod_builder* b)
 {
     struct spa_audio_info_dsp info = { .format = SPA_AUDIO_FORMAT_DSP_F32 };

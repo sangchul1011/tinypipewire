@@ -186,14 +186,22 @@ tpw_filter_port_h tpw_filter_add_video_port_ex(tpw_filter_h handle, tpw_filter_p
     if (want_dmabuf && direction != TPW_FILTER_PORT_INPUT)
         return NULL;
 
-    enum spa_video_format fmt = tpw_spa_lookup_pixel_format(config->pixel_format);
-    if (fmt == SPA_VIDEO_FORMAT_UNKNOWN)
+    bool is_mjpg = tpw_spa_pixel_format_is_mjpg(config->pixel_format);
+    /* MJPEG frames are never handed out as DMABUF. */
+    if (is_mjpg && want_dmabuf)
         return NULL;
+
+    enum spa_video_format fmt = SPA_VIDEO_FORMAT_ENCODED;
+    if (!is_mjpg) {
+        fmt = tpw_spa_lookup_pixel_format(config->pixel_format);
+        if (fmt == SPA_VIDEO_FORMAT_UNKNOWN)
+            return NULL;
+    }
 
     uint8_t buffer[1024];
     struct spa_pod_builder b = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
     const struct spa_pod* params[2];
-    params[0] = tpw_spa_build_video_format(&b, config, fmt);
+    params[0] = is_mjpg ? tpw_spa_build_video_format_mjpg(&b, config) : tpw_spa_build_video_format(&b, config, fmt);
     params[1] = tpw_spa_build_meta_header(&b);
 
     /* DMABUF buffers are not CPU-mapped, so omit MAP_BUFFERS; the DmaBuf

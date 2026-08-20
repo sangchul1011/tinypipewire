@@ -29,6 +29,14 @@ enum spa_video_format tpw_spa_lookup_pixel_format(const char* name);
 const struct spa_pod* tpw_spa_build_video_format(struct spa_pod_builder* b, const tpw_video_config* config,
                                                   enum spa_video_format fmt);
 
+/* True if `name` selects MJPEG, which is not a raw pixel layout and so
+ * cannot go through tpw_spa_lookup_pixel_format(). */
+bool tpw_spa_pixel_format_is_mjpg(const char* name);
+
+/* Builds the MJPEG SPA_TYPE_OBJECT_Format POD for `config` using `b`.
+ * Shared by tpw_stream's and tpw_filter's video format setters. */
+const struct spa_pod* tpw_spa_build_video_format_mjpg(struct spa_pod_builder* b, const tpw_video_config* config);
+
 /* Builds the SPA_TYPE_OBJECT_Format POD for a filter signal port using
  * `b`: audio/dsp media type fixed to 32-bit float, no per-instance
  * fields since there is nothing left for a caller to configure. */
