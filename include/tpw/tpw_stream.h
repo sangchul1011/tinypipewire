@@ -225,7 +225,7 @@ typedef struct {
 typedef struct {
     int width;                /**< Frame width in pixels. */
     int height;               /**< Frame height in pixels. */
-    const char* pixel_format; /**< "RGB", "YUYV", "NV12", "NV21", or "I420". */
+    const char* pixel_format; /**< "RGB", "YUYV", "NV12", "NV21", "I420", or "MJPG". MJPG is JPEG-compressed: each delivered frame's size varies, and DMABUF delivery is not available for it. */
     int fps;                  /**< Frames per second; 0 negotiates automatically. */
 } tpw_video_config;
 
@@ -297,10 +297,14 @@ typedef struct {
  * source is lost after connecting. The stream delivers no frames until
  * reconfigured without DMABUF.
  *
+ * config->pixel_format == "MJPG" combined with DMABUF is rejected right
+ * away with TPW_STREAM_ERR_INVALID_ARG instead: that combination never
+ * works, so it fails immediately rather than through the async path above.
+ *
  * @param stream The stream to configure; must not have started yet.
  * @param config The requested width, height, pixel format, and frame rate.
  * @param opts   DMABUF options, or NULL for AUTO.
- * @return TPW_STREAM_OK, TPW_STREAM_ERR_INVALID_ARG (NULL stream/config, or not a video-capture stream), TPW_STREAM_ERR_INVALID_FORMAT, or TPW_STREAM_ERR_CONNECT_FAILED.
+ * @return TPW_STREAM_OK, TPW_STREAM_ERR_INVALID_ARG (NULL stream/config, not a video-capture stream, or MJPG requested with DMABUF), TPW_STREAM_ERR_INVALID_FORMAT, or TPW_STREAM_ERR_CONNECT_FAILED.
  */
 int tpw_stream_set_video_config_ex(tpw_stream_h stream, const tpw_video_config* config,
                                     const tpw_stream_dmabuf_opts* opts);
