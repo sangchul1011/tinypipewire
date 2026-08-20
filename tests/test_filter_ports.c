@@ -56,6 +56,11 @@ int main(void)
     TPW_ASSERT(out_only != NULL);
     tpw_video_config video_cfg = { .width = 640, .height = 480, .pixel_format = "RGB", .fps = 30 };
     TPW_ASSERT(tpw_filter_add_video_port(out_only, TPW_FILTER_PORT_OUTPUT, &video_cfg) != NULL);
+
+    /* MJPEG is accepted on a filter video port the same way a raw format is. */
+    tpw_video_config mjpg_cfg = { .width = 640, .height = 480, .pixel_format = "MJPG", .fps = 30 };
+    TPW_ASSERT(tpw_filter_add_video_port(out_only, TPW_FILTER_PORT_OUTPUT, &mjpg_cfg) != NULL);
+
     TPW_ASSERT_EQ(tpw_filter_start(out_only), TPW_STREAM_OK);
     tpw_filter_destroy(out_only);
 

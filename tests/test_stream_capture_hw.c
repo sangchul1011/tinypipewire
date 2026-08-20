@@ -109,6 +109,75 @@ static void run_audio_capture(const char* mic)
     TPW_ASSERT_EQ(c.error_code, 0);
 }
 
+struct mjpg_counters {
+    unsigned frames;
+    unsigned saw_non_null_data;
+    unsigned saw_zero_size;
+    size_t first_size;
+    bool saw_different_size;
+    int error_code;
+};
+
+static void on_mjpg_data(tpw_stream_h stream, const tpw_stream_buffer* buf, void* user_data)
+{
+    (void)stream;
+    struct mjpg_counters* c = user_data;
+    c->frames++;
+    if (buf->data)
+        c->saw_non_null_data++;
+    if (buf->data && buf->size == 0)
+        c->saw_zero_size++;
+    if (c->frames == 1)
+        c->first_size = buf->size;
+    else if (buf->size != c->first_size)
+        c->saw_different_size = true;
+}
+
+static void on_mjpg_error(tpw_stream_h stream, int error_code, void* user_data)
+{
+    (void)stream;
+    struct mjpg_counters* c = user_data;
+    c->error_code = error_code;
+}
+
+/* Not every camera offers MJPEG at this size, so a rejected link is
+ * printed and skipped rather than treated as a failure. */
+static void run_mjpg_capture_if_supported(const char* camera)
+{
+    struct mjpg_counters c = { 0 };
+    tpw_stream_h s = tpw_stream_create(TPW_STREAM_TYPE_VIDEO, on_mjpg_data, &c);
+    TPW_ASSERT(s != NULL);
+    TPW_ASSERT_EQ(tpw_stream_set_error_cb(s, on_mjpg_error), TPW_STREAM_OK);
+    TPW_ASSERT_EQ(tpw_stream_set_autoconnect(s, false), TPW_STREAM_OK);
+
+    tpw_video_config cfg = { .width = 1280, .height = 720, .pixel_format = "MJPG", .fps = 30 };
+    TPW_ASSERT_EQ(tpw_stream_set_video_config(s, &cfg), TPW_STREAM_OK);
+    TPW_ASSERT_EQ(tpw_stream_start(s), TPW_STREAM_OK);
+
+    if (tpw_stream_link(s, camera) != TPW_STREAM_OK) {
+        printf("MJPG: camera rejected the request, skipping\n");
+        tpw_stream_destroy(s);
+        return;
+    }
+
+    usleep(RUN_USEC);
+    TPW_ASSERT_EQ(tpw_stream_stop(s), TPW_STREAM_OK);
+    tpw_stream_destroy(s);
+
+    printf("MJPG: frames=%u non_null_data=%u differing_sizes=%s\n", c.frames, c.saw_non_null_data,
+           c.saw_different_size ? "yes" : "no");
+
+    if (c.frames == 0) {
+        printf("MJPG: no frames delivered, skipping\n");
+        return;
+    }
+
+    TPW_ASSERT_EQ(c.saw_non_null_data, c.frames);
+    TPW_ASSERT_EQ(c.saw_zero_size, 0u);
+    TPW_ASSERT(c.saw_different_size);
+    TPW_ASSERT_EQ(c.error_code, 0);
+}
+
 int main(void)
 {
     char camera[256];
@@ -124,6 +193,7 @@ int main(void)
     if (have_camera) {
         printf("capturing video from: %s\n", camera);
         run_video_capture(camera);
+        run_mjpg_capture_if_supported(camera);
     } else {
         printf("no camera present, skipping video capture\n");
     }
