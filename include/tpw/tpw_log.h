@@ -9,11 +9,11 @@ extern "C" {
 
 /* Severity of one log message, most to least severe. */
 typedef enum {
-    TPW_LOG_ERROR,
-    TPW_LOG_WARNING,
-    TPW_LOG_INFO,
-    TPW_LOG_DEBUG,
-    TPW_LOG_VERBOSE
+    TPW_LOG_ERROR   = 0,
+    TPW_LOG_WARNING = 1,
+    TPW_LOG_INFO    = 2,
+    TPW_LOG_DEBUG   = 3,
+    TPW_LOG_VERBOSE = 4
 } tpw_log_level;
 
 /* Receives one already-formatted message from the library, tagged
