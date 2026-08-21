@@ -30,6 +30,14 @@ install_headers(
   subdir: 'tpw',
 )
 
+pkg = import('pkgconfig')
+pkg.generate(
+  tinypipewire_lib,
+  name: 'tinypipewire',
+  description: 'Small wrapper around PipeWire pw_stream for audio/video capture and playback',
+  requires: 'libpipewire-0.3',
+)
+
 if get_option('tests')
   # Hardware tests need a real capture device, so a plain `meson test` skips
   # the whole suite; run it with `meson test --suite hardware`.
