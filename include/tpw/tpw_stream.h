@@ -277,6 +277,7 @@ int tpw_stream_set_video_config(tpw_stream_h stream, const tpw_video_config* con
  */
 typedef struct {
     tpw_port_memory memory; /**< AUTO (default) or DMABUF. */
+    uint32_t reserved[2];   /**< Must be zero; reserved for future options. */
 } tpw_stream_dmabuf_opts;
 
 /**

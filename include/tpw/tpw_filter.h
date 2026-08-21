@@ -163,6 +163,7 @@ tpw_filter_port_h tpw_filter_add_video_port(tpw_filter_h filter, tpw_filter_port
  */
 typedef struct {
     tpw_port_memory memory; /**< AUTO (default) or DMABUF. */
+    uint32_t reserved[2];   /**< Must be zero; reserved for future options. */
 } tpw_filter_port_opts;
 
 /**
