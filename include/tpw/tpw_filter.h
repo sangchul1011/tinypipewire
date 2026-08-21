@@ -27,8 +27,8 @@ typedef struct tpw_filter_port* tpw_filter_port_h;
 
 /** @brief Direction of a filter port. */
 typedef enum {
-    TPW_FILTER_PORT_INPUT,  /**< Consumes data delivered by the graph, or pushed with tpw_filter_push_port_data()/tpw_filter_port_push_event(). */
-    TPW_FILTER_PORT_OUTPUT  /**< Produces data for the graph, written from the processing callback. */
+    TPW_FILTER_PORT_INPUT  = 0, /**< Consumes data delivered by the graph, or pushed with tpw_filter_push_port_data()/tpw_filter_port_push_event(). */
+    TPW_FILTER_PORT_OUTPUT = 1  /**< Produces data for the graph, written from the processing callback. */
 } tpw_filter_port_direction;
 
 /**
@@ -81,10 +81,10 @@ typedef void (*tpw_filter_error_cb)(tpw_filter_h filter, tpw_filter_port_h port,
  * Passing UNKNOWN to tpw_filter_port_push_event() is rejected.
  */
 typedef enum {
-    TPW_EVENT_MIDI,     /**< Real MIDI wire bytes. */
-    TPW_EVENT_OSC,      /**< Real OSC wire bytes. */
-    TPW_EVENT_PROPERTY, /**< General-purpose named value; `key` selects it. */
-    TPW_EVENT_UNKNOWN   /**< Read-only: an undecoded control item from another client. */
+    TPW_EVENT_MIDI     = 0, /**< Real MIDI wire bytes. */
+    TPW_EVENT_OSC      = 1, /**< Real OSC wire bytes. */
+    TPW_EVENT_PROPERTY = 2, /**< General-purpose named value; `key` selects it. */
+    TPW_EVENT_UNKNOWN  = 3  /**< Read-only: an undecoded control item from another client. */
 } tpw_event_kind;
 
 /**

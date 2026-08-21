@@ -28,10 +28,10 @@ typedef struct tpw_stream* tpw_stream_h;
  * AUDIO/VIDEO and rejects the other two.
  */
 typedef enum {
-    TPW_STREAM_TYPE_AUDIO,  /**< Raw audio samples. */
-    TPW_STREAM_TYPE_VIDEO,  /**< Raw video frames. */
-    TPW_STREAM_TYPE_SIGNAL, /**< Filter ports only, see tpw_filter.h. */
-    TPW_STREAM_TYPE_EVENT   /**< Filter ports only, see tpw_filter.h. */
+    TPW_STREAM_TYPE_AUDIO  = 0, /**< Raw audio samples. */
+    TPW_STREAM_TYPE_VIDEO  = 1, /**< Raw video frames. */
+    TPW_STREAM_TYPE_SIGNAL = 2, /**< Filter ports only, see tpw_filter.h. */
+    TPW_STREAM_TYPE_EVENT  = 3  /**< Filter ports only, see tpw_filter.h. */
 } tpw_stream_type;
 
 /** @brief Library error codes. Negative values only; 0 is success. */
@@ -236,8 +236,8 @@ typedef struct {
  * negotiates file descriptors instead of a CPU buffer.
  */
 typedef enum {
-    TPW_PORT_MEMORY_AUTO,   /**< Graph-selected, normally CPU-mapped. */
-    TPW_PORT_MEMORY_DMABUF  /**< Negotiate DMABUF file descriptors. */
+    TPW_PORT_MEMORY_AUTO   = 0, /**< Graph-selected, normally CPU-mapped. */
+    TPW_PORT_MEMORY_DMABUF = 1  /**< Negotiate DMABUF file descriptors. */
 } tpw_port_memory;
 
 /**
