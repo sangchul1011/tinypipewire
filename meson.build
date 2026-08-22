@@ -15,6 +15,7 @@ pipewire_dep = dependency('libpipewire-0.3', version: '>=0.3.50')
 
 tpw_inc = include_directories('include')
 
+subdir('include/tpw')
 subdir('src')
 
 tinypipewire_dep = declare_dependency(
