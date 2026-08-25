@@ -51,6 +51,55 @@ static void on_process(tpw_filter_h filter, tpw_filter_port_buffer* buffers, siz
     }
 }
 
+/* Counts mapped buffers, for the shared-source test's plain ports. */
+static void on_process_count(tpw_filter_h filter, tpw_filter_port_buffer* buffers, size_t n_buffers,
+                              void* user_data)
+{
+    (void)filter;
+    unsigned* count = user_data;
+
+    for (size_t i = 0; i < n_buffers; i++) {
+        if (buffers[i].data && buffers[i].size > 0)
+            (*count)++;
+    }
+}
+
+/* Three filters naming one source must all link and all receive. Leaving
+ * the output port to the core hands each consumer a different port and
+ * fails once they run out, whatever the node's port count. */
+static void test_shared_source(const char* target, bool video)
+{
+    enum { N = 3 };
+    unsigned received[N] = { 0 };
+    tpw_filter_h filter[N];
+    tpw_filter_port_h port[N];
+    tpw_video_config cfg = { .width = 640, .height = 480, .pixel_format = "YUYV", .fps = 30 };
+
+    for (int i = 0; i < N; i++) {
+        filter[i] = tpw_filter_create("tpw-hw-shared", on_process_count, &received[i]);
+        TPW_ASSERT(filter[i] != NULL);
+        port[i] = video ? tpw_filter_add_video_port(filter[i], TPW_FILTER_PORT_INPUT, &cfg)
+                        : tpw_filter_add_signal_port(filter[i], TPW_FILTER_PORT_INPUT);
+        TPW_ASSERT(port[i] != NULL);
+        TPW_ASSERT_EQ(tpw_filter_start(filter[i]), TPW_STREAM_OK);
+    }
+
+    for (int i = 0; i < N; i++) {
+        int res = tpw_filter_port_link(port[i], target);
+        printf("  shared link %d -> '%s': %d\n", i, target, res);
+        TPW_ASSERT_EQ(res, TPW_STREAM_OK);
+    }
+
+    usleep(RUN_USEC);
+
+    printf("  shared buffers: %u / %u / %u\n", received[0], received[1], received[2]);
+    for (int i = 0; i < N; i++)
+        TPW_ASSERT(received[i] > 0);
+
+    for (int i = 0; i < N; i++)
+        tpw_filter_destroy(filter[i]);
+}
+
 /* Links a camera to a DMABUF video port and checks frames really flow. A
  * microphone, when present, is linked to a signal port as well: audio
  * drives the graph faster than the camera, which is what engages hold. */
@@ -171,11 +220,13 @@ int main(void)
     if (have_camera) {
         printf("camera: %s\n", camera);
         test_video_link(camera, have_mic ? mic : NULL);
+        test_shared_source(camera, true);
     }
     if (have_mic) {
         printf("microphone: %s\n", mic);
         test_audio_link(mic);
         test_audio_raw_is_incompatible(mic);
+        test_shared_source(mic, false);
     }
     return 0;
 }
