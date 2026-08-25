@@ -159,9 +159,16 @@ int tpw_filter_port_unlink(tpw_filter_port_h port);
 - **Target syntax** — `target` is a node name, an `object.serial` (a string
   of digits), or `"node:port"` to pin an exact output port on that node.
   Names are the ones `wpctl status` and `pw-cli ls Node` print. When only a
-  node is named, PipeWire picks a compatible output port on it, so a stereo
-  microphone resolves to `capture_FL` and a camera to `capture_1` without
-  the caller naming them.
+  node is named, the link goes to its first output port — `capture_FL` on a
+  stereo microphone, `capture_1` on a camera — without the caller naming it.
+  Name the port to choose another: a second signal port reaches the right
+  channel of that microphone as `"<node>:capture_FR"`.
+- **One source, several consumers** — a node name always resolves to the same
+  output port, so several filters, or several ports of one filter, can link
+  to one source and each receives its frames. A slow consumer falls behind on
+  its own without holding the others back. The source carries one format at a
+  time, though: whoever negotiates first fixes it, and a port that asked for
+  something else is linked at the established format and says so in the log.
 - **Call it after `tpw_filter_start()`** — this is the one port call that
   is *not* pre-start. The target is looked up in the running graph, so the
   filter's own node has to exist there first. Calling it earlier returns
