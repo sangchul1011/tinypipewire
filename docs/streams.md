@@ -1,0 +1,201 @@
+# Streams
+
+`include/tpw/tpw_stream.h` — capturing audio or video from a device, and
+playing audio back to one. A stream is a single handle with a single
+callback; one `tpw_stream_h` captures either audio or video, and both types
+share the same creation, control, and data-callback functions.
+
+- [Capture](#capture)
+- [Audio playback](#audio-playback)
+- [Wiring a stream yourself](#wiring-a-stream-yourself)
+- [DMABUF capture](#dmabuf-capture)
+
+## Capture
+
+```c
+tpw_stream_h tpw_stream_create(tpw_stream_type type, tpw_stream_data_cb callback, void* user_data);
+int tpw_stream_set_error_cb(tpw_stream_h stream, tpw_stream_error_cb callback);
+int tpw_stream_set_target(tpw_stream_h stream, const char* target);
+int tpw_stream_set_audio_config(tpw_stream_h stream, const tpw_audio_config* config);
+int tpw_stream_set_video_config(tpw_stream_h stream, const tpw_video_config* config);
+int tpw_stream_start(tpw_stream_h stream);
+int tpw_stream_stop(tpw_stream_h stream);
+void tpw_stream_destroy(tpw_stream_h stream);
+```
+
+Format is passed as a config struct, so new fields can be added without
+changing the call signature:
+
+```c
+tpw_audio_config a = { .sample_rate = 48000, .channels = 2, .format = "F32" };
+tpw_stream_set_audio_config(stream, &a);   /* format = NULL defaults to "S16" */
+
+tpw_video_config v = { .width = 640, .height = 480, .pixel_format = "YUYV", .fps = 30 };
+tpw_stream_set_video_config(stream, &v);   /* fps = 0 lets the source pick the rate */
+```
+
+### Choosing a source
+
+By default a stream auto-connects to PipeWire's default source for its
+media type. `tpw_stream_set_target()` points it at a specific node by
+name or serial instead (see `wpctl status` or `pw-cli ls Node`).
+Call it before `tpw_stream_set_audio_config()`/`tpw_stream_set_video_config()`,
+which is what actually connects the stream.
+
+### The capture buffer
+
+`tpw_stream_data_cb` receives a `const tpw_stream_buffer*` rather than
+loose `data`/`size` parameters, so future fields can be added without
+changing the callback signature. It currently carries:
+
+```c
+typedef struct {
+    void* data;
+    size_t size;
+    int64_t pts; /* capture timestamp in nanoseconds (the driver clock
+                    used by the underlying SPA node, e.g. ALSA or
+                    V4L2), or -1 if the buffer had no timestamp
+                    metadata. */
+} tpw_stream_buffer;
+```
+
+The stream requests capture-clock metadata from the source on connect, so
+`pts` is populated whenever the source provides one; -1 is the exception
+this field exists for, not the common case.
+
+## Audio playback
+
+`tpw_stream_create_playback()` makes a stream that emits to an output device
+instead of capturing from an input one. It takes no media type — a video
+playback stream cannot be expressed — and everything else is the same as a
+capture stream: `tpw_stream_set_target()` picks a specific sink (default
+otherwise), `tpw_stream_set_audio_config()` accepts the same formats and
+connects, and start/stop/destroy behave identically.
+`tpw_stream_set_video_config()` is rejected on it.
+
+```c
+tpw_stream_h tpw_stream_create_playback(tpw_stream_playback_cb callback, void* user_data);
+```
+
+The difference is the callback. Capture hands you a `const` buffer to read;
+playback hands you a writable one to fill and asks how much you wrote:
+
+```c
+typedef struct {
+    void* data;       /* writable region for this cycle */
+    size_t available; /* bytes you may write this cycle: what the device asked
+                         for, or the region's full size if the graph said
+                         nothing. Not the region's capacity — usually less. */
+    int64_t pts;      /* when this cycle's first sample is expected to be
+                         *heard*, in monotonic nanoseconds, or -1. The mirror
+                         of the capture pts: capture says when samples were
+                         taken, playback when they will be played — which is
+                         what you sync other media against. */
+    size_t size;      /* you set this: bytes actually written */
+} tpw_stream_playback_buffer;
+```
+
+A full cycle always goes out. Write less than `available` and the remainder is
+emitted as silence; write nothing and the cycle is silent but the stream keeps
+running. An oversized `size` is clamped, a count that is not a whole number of
+frames is floored, and both are noted in the log.
+
+The callback runs on the real-time data thread: it must not block, allocate,
+or perform I/O. A cycle whose callback overruns its budget is emitted as
+silence and logged — rate-limited to one report per second, so a persistently
+slow callback does not drown the log — and is never reported through the error
+callback, which stays reserved for the output device disappearing.
+
+## Wiring a stream yourself
+
+By default a stream declares itself for automatic connection and the session
+manager (WirePlumber, typically) decides what it links to; `tpw_stream_set_target()`
+is a *hint* to that decision. On a system running no session manager, nothing
+makes the decision and the stream connects to nothing at all.
+
+Three calls let an application do the wiring instead:
+
+```c
+int tpw_stream_set_autoconnect(tpw_stream_h stream, bool enable);
+int tpw_stream_link(tpw_stream_h stream, const char* target);
+int tpw_stream_unlink(tpw_stream_h stream);
+```
+
+```c
+tpw_stream_h s = tpw_stream_create(TPW_STREAM_TYPE_AUDIO, on_data, NULL);
+tpw_stream_set_autoconnect(s, false);        /* before the format */
+tpw_stream_set_audio_config(s, &cfg);
+tpw_stream_start(s);                          /* the graph is where we look */
+tpw_stream_link(s, "alsa_input.usb-046d_C922...analog-stereo");
+```
+
+`tpw_stream_link()` comes *after* `tpw_stream_start()`, unlike every other
+setup call: both the target and the stream's own ports are resolved in the
+running graph, and the ports appear a moment after the stream starts. Channels
+are paired by position, so a stereo stream reaches a stereo device's two ports
+without naming any of them. The call blocks until every link negotiates, and if
+any channel fails none is left behind.
+
+A device with **fewer** channels than the stream is rejected outright — a
+stream never ends up half-wired. A device with **more** succeeds, leaving the
+surplus unconnected and saying so in the log, since a mono stream reaching one
+side of a stereo device otherwise looks like a fault.
+
+Links live from `tpw_stream_link()` until `tpw_stream_unlink()` or
+`tpw_stream_destroy()`. **`tpw_stream_stop()` does not release them**, so a
+stopped stream resumes on the same device rather than silently running
+unconnected.
+
+Automatic connection stays on unless you turn it off, so existing code is
+unaffected. The two modes are mutually exclusive: combining
+`tpw_stream_set_target()` with `tpw_stream_set_autoconnect(false)` returns
+`TPW_STREAM_ERR_INVALID_ARG`, whichever you call second.
+
+### What manual wiring takes on
+
+Choosing manual wiring takes on three things the session manager otherwise
+handles:
+
+- **Channel order.** Pairing is positional, and an unnegotiated stream's ports
+  carry no channel identity, so the library cannot verify that your channel 0
+  is the left channel.
+- **Reconnection.** When a linked device disappears the error callback fires
+  with `TPW_STREAM_ERR_SOURCE_UNAVAILABLE` and nothing re-routes; linking
+  somewhere else is your decision.
+- **Device availability.** On a system with no session manager the device nodes
+  themselves must come from somewhere — the daemon's own configuration, for
+  instance. This controls wiring, not what devices exist.
+
+## DMABUF capture
+
+A video capture stream can opt into receiving DMABUF file descriptors
+instead of CPU-mapped frames, so a single-consumer application (an encoder,
+a GPU import path) never has to build a `tpw_filter` just to forward one
+input:
+
+```c
+typedef struct { tpw_port_memory memory; } tpw_stream_dmabuf_opts;
+
+int tpw_stream_set_video_config_ex(tpw_stream_h stream, const tpw_video_config* config,
+                                    const tpw_stream_dmabuf_opts* opts);
+size_t tpw_stream_buffer_dmabuf(tpw_stream_h stream, tpw_dmabuf_plane* planes, size_t planes_len);
+```
+
+`tpw_stream_set_video_config_ex()` with `opts->memory == TPW_PORT_MEMORY_DMABUF`
+requests DMABUF-capable capture; `opts == NULL` is exactly
+`tpw_stream_set_video_config()`, unchanged. On a DMABUF stream every
+delivered `tpw_stream_buffer.data` is NULL — read the frame's planes with
+`tpw_stream_buffer_dmabuf()`, which returns the plane count and fills
+`fd`/`offset`/`stride`/`size` per plane (one for RGB/YUYV, more for planar
+formats like NV12/I420). It returns 0 for a non-DMABUF stream, never
+fabricating an fd, and the `fd` is borrowed for the callback only. If the
+source cannot provide DMABUF, the stream delivers no frames and
+`tpw_stream_error_cb` fires with `TPW_STREAM_ERR_SOURCE_UNAVAILABLE` —
+there is no silent fallback to CPU-mapped delivery. This capability is
+video-capture-only; requesting it on an audio or playback stream is
+rejected the same way an ordinary video config is.
+
+## See also
+
+- [Filters](filters.md) — combining several sources into one processed output
+- [Logging](logging.md) — redirecting the library's diagnostics
