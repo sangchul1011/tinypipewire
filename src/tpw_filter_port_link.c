@@ -20,6 +20,14 @@
 #define TPW_OWN_PORT_ATTEMPTS   100
 #define TPW_OWN_PORT_RETRY_USEC (20 * 1000)
 
+/* How many core round-trips to wait for a target node's ports to reach the
+ * registry before linking without naming one. */
+#define TPW_TARGET_PORT_ATTEMPTS 10
+
+/* Upper bound on the output ports considered when picking one; more than
+ * this on a single capture node does not happen in practice. */
+#define TPW_MAX_TARGET_PORTS 64
+
 /* Tracks one in-flight link's negotiation while tpw_filter_port_link()
  * blocks on the thread loop. */
 struct tpw_link_wait {
@@ -39,8 +47,31 @@ static bool tpw_str_is_all_digits(const char* s)
     return true;
 }
 
-/* Resolves `target` to a node id, and to an output port id when the
- * target names one explicitly. Returns 0 when nothing matches. */
+/* Picks the lowest-ordinal output port, so every consumer naming the same
+ * node lands on it; the core would instead hand out whichever port is
+ * unlinked. Returns 0 if the ports have not arrived, leaving the core to pick. */
+static uint32_t tpw_pick_target_port(struct tpw_filter* filter, uint32_t node_id)
+{
+    const struct tpw_pw_port_entry* outs[TPW_MAX_TARGET_PORTS];
+
+    for (int attempt = 0; attempt < TPW_TARGET_PORT_ATTEMPTS; attempt++) {
+        size_t n = tpw_pw_registry_list_ports(&filter->registry, node_id, SPA_DIRECTION_OUTPUT, outs,
+                                               TPW_MAX_TARGET_PORTS);
+        if (n > 0) {
+            if (n > 1)
+                tpw_log_debug("filter '%s': target has %zu output ports, linking to '%s'; name it as "
+                              "node:port to choose another",
+                              filter->name ? filter->name : "tpw-filter", n, outs[0]->name);
+            return outs[0]->id;
+        }
+        if (tpw_pw_registry_sync(&filter->registry, &filter->conn) < 0)
+            break;
+    }
+    return 0;
+}
+
+/* Resolves `target` to a node id, and to the output port id to link, whether
+ * the target names one explicitly or not. Returns 0 when nothing matches. */
 static uint32_t tpw_resolve_target(struct tpw_filter* filter, const char* target, uint32_t* out_port_id)
 {
     struct tpw_pw_registry* reg = &filter->registry;
@@ -51,8 +82,10 @@ static uint32_t tpw_resolve_target(struct tpw_filter* filter, const char* target
     uint32_t node_id = tpw_str_is_all_digits(target)
                            ? tpw_pw_registry_find_node_by_serial(reg, strtoull(target, NULL, 10))
                            : tpw_pw_registry_find_node_by_name(reg, target);
-    if (node_id)
+    if (node_id) {
+        *out_port_id = tpw_pick_target_port(filter, node_id);
         return node_id;
+    }
 
     const char* sep = strrchr(target, ':');
     if (!sep || sep == target || !sep[1])
@@ -209,8 +242,8 @@ int tpw_filter_port_link(tpw_filter_port_h port_handle, const char* target)
                                                      PW_KEY_LINK_OUTPUT_NODE, out_node, NULL);
     if (!props)
         return TPW_STREAM_ERR_CONNECT_FAILED;
-    /* Without an explicit output port, the core's link factory picks a
-     * compatible one on the target node. */
+    /* Only unset when the target's ports have not shown up yet; then the
+     * core's link factory picks one on the target node. */
     if (target_port_id) {
         snprintf(out_port, sizeof(out_port), "%u", target_port_id);
         pw_properties_set(props, PW_KEY_LINK_OUTPUT_PORT, out_port);
