@@ -23,6 +23,10 @@ const struct spa_pod* tpw_spa_build_audio_format(struct spa_pod_builder* b, cons
  * or SPA_VIDEO_FORMAT_UNKNOWN if unrecognized. */
 enum spa_video_format tpw_spa_lookup_pixel_format(const char* name);
 
+/* Names a pixel format for a log message, the reverse of
+ * tpw_spa_lookup_pixel_format(); "unknown" if unrecognized. */
+const char* tpw_spa_pixel_format_name(enum spa_video_format format);
+
 /* Builds the raw-video SPA_TYPE_OBJECT_Format POD for `config`/`fmt`
  * using `b`. Shared by tpw_stream's and tpw_filter's video format
  * setters. Does not validate `config`. */

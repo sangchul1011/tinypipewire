@@ -9,6 +9,42 @@
 
 #include "tpw_filter_internal.h"
 #include "tpw_log_internal.h"
+#include "tpw_spa_format_internal.h"
+
+/* Reports a port that negotiated a format other than the one it asked for,
+ * which happens when another consumer already configured the source. The
+ * frame rate is not compared: fps == 0 asks the source to choose one. */
+static void tpw_filter_check_negotiated_video(struct tpw_filter* filter, struct tpw_filter_port* port,
+                                               const struct spa_pod* param)
+{
+    uint32_t media_type, media_subtype;
+    if (port->media_type != TPW_STREAM_TYPE_VIDEO)
+        return;
+    if (spa_format_parse(param, &media_type, &media_subtype) < 0 || media_type != SPA_MEDIA_TYPE_video)
+        return;
+
+    enum spa_video_format got = SPA_VIDEO_FORMAT_ENCODED;
+    struct spa_rectangle size = SPA_RECTANGLE(0, 0);
+    if (media_subtype == SPA_MEDIA_SUBTYPE_raw) {
+        struct spa_video_info_raw info;
+        if (spa_format_video_raw_parse(param, &info) < 0)
+            return;
+        got = info.format;
+        size = info.size;
+    } else if (spa_pod_parse_object(param, SPA_TYPE_OBJECT_Format, NULL, SPA_FORMAT_VIDEO_size,
+                                     SPA_POD_Rectangle(&size)) < 0) {
+        return;
+    }
+
+    const struct tpw_filter_video_port_state* want = &port->config.video;
+    if (got == want->format && (int)size.width == want->width && (int)size.height == want->height)
+        return;
+
+    tpw_log_warning("filter '%s': port negotiated %s %ux%u, not the %s %dx%d it requested; the source "
+                    "is shared and was already configured",
+                    filter->name ? filter->name : "tpw-filter", tpw_spa_pixel_format_name(got), size.width,
+                    size.height, tpw_spa_pixel_format_name(want->format), want->width, want->height);
+}
 
 void tpw_filter_on_param_changed(void* data, void* port_data, uint32_t id, const struct spa_pod* param)
 {
@@ -22,6 +58,7 @@ void tpw_filter_on_param_changed(void* data, void* port_data, uint32_t id, const
         /* Format negotiated. A DMABUF port advertises its DmaBuf Buffers
          * param now (deferred from add time, which crashes 1.0.5); a
          * no-op for every other port. */
+        tpw_filter_check_negotiated_video(filter, port, param);
         tpw_filter_dmabuf_update_params(port);
         return;
     }
