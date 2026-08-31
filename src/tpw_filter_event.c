@@ -228,7 +228,7 @@ void tpw_filter_event_free_port(struct tpw_filter_port* port)
     free(port->incoming_events);
 }
 
-size_t tpw_filter_port_event_count(tpw_filter_port_h port_handle)
+size_t tpw_filter_port_get_event_count(tpw_filter_port_h port_handle)
 {
     struct tpw_filter_port* port = (struct tpw_filter_port*)port_handle;
     if (!port || port->media_type != TPW_STREAM_TYPE_EVENT || port->direction != TPW_FILTER_PORT_INPUT)

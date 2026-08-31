@@ -172,7 +172,7 @@ typedef struct {
  * Equivalent to tpw_filter_add_video_port() when `opts` is NULL. With
  * opts->memory == TPW_PORT_MEMORY_DMABUF the port (input only) negotiates
  * DMABUF frames; its tpw_filter_port_buffer.data is NULL and planes are
- * read via tpw_filter_port_buffer_dmabuf().
+ * read via tpw_filter_port_get_dmabuf_planes().
  *
  * @param filter    The filter to add the port to, not yet started.
  * @param direction TPW_FILTER_PORT_INPUT or TPW_FILTER_PORT_OUTPUT.
@@ -198,8 +198,8 @@ tpw_filter_port_h tpw_filter_add_video_port_ex(tpw_filter_h filter, tpw_filter_p
  * @param[in]  planes_len Capacity of `planes`.
  * @return The plane count actually available, which may exceed `planes_len` if it was too small; 0 for a non-DMABUF port or a cycle with no buffer, and `planes` is left unwritten.
  */
-size_t tpw_filter_port_buffer_dmabuf(const tpw_filter_port_buffer* buf,
-                                      tpw_dmabuf_plane* planes, size_t planes_len);
+size_t tpw_filter_port_get_dmabuf_planes(const tpw_filter_port_buffer* buf,
+                                          tpw_dmabuf_plane* planes, size_t planes_len);
 
 /**
  * @brief Enables (or disables) single-buffer "hold" on an input `port`.
@@ -301,7 +301,7 @@ tpw_stream_type tpw_filter_port_get_type(tpw_filter_port_h port);
  * @param port An input event port.
  * @return The event count for this cycle; 0 if none.
  */
-size_t tpw_filter_port_event_count(tpw_filter_port_h port);
+size_t tpw_filter_port_get_event_count(tpw_filter_port_h port);
 
 /**
  * @brief Reads the event at `index` (0-based, cycle-delivery order) on

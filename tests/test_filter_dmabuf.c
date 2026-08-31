@@ -37,7 +37,7 @@ static void test_plane_extraction(tpw_filter_port_h dmabuf_port)
 
     tpw_dmabuf_plane planes[4];
     tpw_filter_port_buffer buf = { .port = dmabuf_port };
-    TPW_ASSERT_EQ(tpw_filter_port_buffer_dmabuf(&buf, planes, 4), (size_t)2); /* MemPtr skipped */
+    TPW_ASSERT_EQ(tpw_filter_port_get_dmabuf_planes(&buf, planes, 4), (size_t)2); /* MemPtr skipped */
     TPW_ASSERT_EQ(planes[0].fd, 42);
     TPW_ASSERT_EQ(planes[0].offset, 16u);
     TPW_ASSERT_EQ(planes[0].stride, 640u);
@@ -48,7 +48,7 @@ static void test_plane_extraction(tpw_filter_port_h dmabuf_port)
 
     /* max_planes bounds how many are written, not the returned count. */
     tpw_dmabuf_plane one;
-    TPW_ASSERT_EQ(tpw_filter_port_buffer_dmabuf(&buf, &one, 1), (size_t)2);
+    TPW_ASSERT_EQ(tpw_filter_port_get_dmabuf_planes(&buf, &one, 1), (size_t)2);
     TPW_ASSERT_EQ(one.fd, 42);
 
     port->current_dmabuf_buf = NULL;
@@ -103,12 +103,12 @@ int main(void)
      * for a DMABUF port outside a cycle (no current buffer), and for NULL. */
     tpw_dmabuf_plane planes[4];
     tpw_filter_port_buffer cpu_buf = { .port = cpu_in };
-    TPW_ASSERT_EQ(tpw_filter_port_buffer_dmabuf(&cpu_buf, planes, 4), 0);
+    TPW_ASSERT_EQ(tpw_filter_port_get_dmabuf_planes(&cpu_buf, planes, 4), 0);
 
     tpw_filter_port_buffer dmabuf_buf = { .port = dmabuf_in };
-    TPW_ASSERT_EQ(tpw_filter_port_buffer_dmabuf(&dmabuf_buf, planes, 4), 0);
+    TPW_ASSERT_EQ(tpw_filter_port_get_dmabuf_planes(&dmabuf_buf, planes, 4), 0);
 
-    TPW_ASSERT_EQ(tpw_filter_port_buffer_dmabuf(NULL, planes, 4), 0);
+    TPW_ASSERT_EQ(tpw_filter_port_get_dmabuf_planes(NULL, planes, 4), 0);
 
     /* With a real DMABUF frame present, the accessor extracts its planes. */
     test_plane_extraction(dmabuf_in);

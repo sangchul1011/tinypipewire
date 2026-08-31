@@ -40,7 +40,7 @@ static void process_cb(tpw_filter_h filter, tpw_filter_port_buffer* buffers, siz
     }
 
     tpw_filter_port_h in = buffers[0].port;
-    size_t count = tpw_filter_port_event_count(in);
+    size_t count = tpw_filter_port_get_event_count(in);
     if (count == 0)
         return;
     /* Only overwrite the "last observed" globals on a cycle that
@@ -151,8 +151,8 @@ int main(void)
     TPW_ASSERT_EQ(tpw_filter_port_get_event(audio_in, 0, &scratch_ev), TPW_STREAM_ERR_INVALID_ARG);
     TPW_ASSERT_EQ(tpw_filter_port_get_event(ev_out, 0, &scratch_ev), TPW_STREAM_ERR_INVALID_ARG);
     TPW_ASSERT_EQ(tpw_filter_port_get_event(ev_in, 0, &scratch_ev), TPW_STREAM_ERR_INVALID_ARG);
-    TPW_ASSERT_EQ(tpw_filter_port_event_count(audio_in), (size_t)0);
-    TPW_ASSERT_EQ(tpw_filter_port_event_count(ev_out), (size_t)0);
+    TPW_ASSERT_EQ(tpw_filter_port_get_event_count(audio_in), (size_t)0);
+    TPW_ASSERT_EQ(tpw_filter_port_get_event_count(ev_out), (size_t)0);
 
     uint8_t junk[4] = { 0 };
     TPW_ASSERT_EQ(tpw_filter_push_port_data(filter, ev_in, junk, sizeof(junk), -1), TPW_STREAM_ERR_INVALID_ARG);

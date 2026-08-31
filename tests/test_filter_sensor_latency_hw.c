@@ -122,7 +122,7 @@ static void on_process(tpw_filter_h filter, tpw_filter_port_buffer* buffers, siz
 
         if (buf->port == b->video) {
             tpw_dmabuf_plane plane;
-            if (tpw_filter_port_buffer_dmabuf(buf, &plane, 1) > 0) {
+            if (tpw_filter_port_get_dmabuf_planes(buf, &plane, 1) > 0) {
                 if (buf->fresh) {
                     b->video_fresh++;
                 } else {

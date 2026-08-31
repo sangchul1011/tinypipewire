@@ -41,7 +41,7 @@ static void on_process(tpw_filter_h filter, tpw_filter_port_buffer* buffers, siz
     tpw_filter_port_h in = buffers[0].port;
     tpw_filter_port_h out = buffers[1].port;
 
-    size_t count = tpw_filter_port_event_count(in);
+    size_t count = tpw_filter_port_get_event_count(in);
     for (size_t i = 0; i < count; i++) {
         tpw_event ev;
         if (tpw_filter_port_get_event(in, i, &ev) != TPW_STREAM_OK)
