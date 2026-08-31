@@ -159,7 +159,7 @@ tpw_filter_port_h tpw_filter_add_video_port(tpw_filter_h filter, tpw_filter_port
  *
  * A NULL or zeroed struct means AUTO, i.e. the behavior of the non-_ex
  * add call. tpw_port_memory is declared in tpw_stream.h, shared with
- * tpw_stream_buffer_dmabuf().
+ * tpw_stream_get_dmabuf_planes().
  */
 typedef struct {
     tpw_port_memory memory; /**< AUTO (default) or DMABUF. */

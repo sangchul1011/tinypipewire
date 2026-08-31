@@ -19,7 +19,7 @@ static void on_data(tpw_stream_h stream, const tpw_stream_buffer* buf, void* use
     (void)user_data;
 
     tpw_dmabuf_plane planes[4];
-    size_t n_planes = tpw_stream_buffer_dmabuf(stream, planes, 4);
+    size_t n_planes = tpw_stream_get_dmabuf_planes(stream, planes, 4);
     if (n_planes == 0) {
         printf("video: frame with no DMABUF plane (pts=%lld ns)\n", (long long)buf->pts);
         return;

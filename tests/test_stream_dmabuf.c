@@ -35,7 +35,7 @@ static void test_plane_extraction(tpw_stream_h handle)
     stream->current_dmabuf_buf = &sb;
 
     tpw_dmabuf_plane planes[4];
-    TPW_ASSERT_EQ(tpw_stream_buffer_dmabuf(handle, planes, 4), (size_t)1);
+    TPW_ASSERT_EQ(tpw_stream_get_dmabuf_planes(handle, planes, 4), (size_t)1);
     TPW_ASSERT_EQ(planes[0].fd, 42);
     TPW_ASSERT_EQ(planes[0].offset, 16u);
     TPW_ASSERT_EQ(planes[0].stride, 640u);
@@ -60,7 +60,7 @@ static void test_nv12_two_fds(tpw_stream_h handle)
     stream->current_dmabuf_buf = &sb;
 
     tpw_dmabuf_plane planes[4];
-    TPW_ASSERT_EQ(tpw_stream_buffer_dmabuf(handle, planes, 4), (size_t)2);
+    TPW_ASSERT_EQ(tpw_stream_get_dmabuf_planes(handle, planes, 4), (size_t)2);
     TPW_ASSERT_EQ(planes[0].fd, 10);
     TPW_ASSERT_EQ(planes[0].stride, 640u);
     TPW_ASSERT_EQ(planes[1].fd, 11);
@@ -94,7 +94,7 @@ static void test_i420_shared_fd(tpw_stream_h handle)
     stream->current_dmabuf_buf = &sb;
 
     tpw_dmabuf_plane planes[4];
-    TPW_ASSERT_EQ(tpw_stream_buffer_dmabuf(handle, planes, 4), (size_t)3);
+    TPW_ASSERT_EQ(tpw_stream_get_dmabuf_planes(handle, planes, 4), (size_t)3);
     TPW_ASSERT_EQ(planes[0].fd, 20);
     TPW_ASSERT_EQ(planes[0].offset, 0u);
     TPW_ASSERT_EQ(planes[1].fd, 20);
@@ -126,8 +126,8 @@ int main(void)
     /* The accessor never fabricates a plane on a non-DMABUF stream, or for
      * a NULL handle. */
     tpw_dmabuf_plane planes[4];
-    TPW_ASSERT_EQ(tpw_stream_buffer_dmabuf(stream, planes, 4), 0);
-    TPW_ASSERT_EQ(tpw_stream_buffer_dmabuf(NULL, planes, 4), 0);
+    TPW_ASSERT_EQ(tpw_stream_get_dmabuf_planes(stream, planes, 4), 0);
+    TPW_ASSERT_EQ(tpw_stream_get_dmabuf_planes(NULL, planes, 4), 0);
 
     /* DMABUF is accepted on a video capture stream. */
     tpw_stream_dmabuf_opts dmabuf_opts = { .memory = TPW_PORT_MEMORY_DMABUF };
@@ -135,7 +135,7 @@ int main(void)
     TPW_ASSERT(((struct tpw_stream*)stream)->use_dmabuf);
 
     /* Outside a cycle (no current buffer) the accessor still returns 0. */
-    TPW_ASSERT_EQ(tpw_stream_buffer_dmabuf(stream, planes, 4), 0);
+    TPW_ASSERT_EQ(tpw_stream_get_dmabuf_planes(stream, planes, 4), 0);
 
     /* With a real DMABUF frame present, the accessor extracts its plane. */
     test_plane_extraction(stream);

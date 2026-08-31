@@ -62,7 +62,7 @@ callback:
   through a small accessor API instead of a raw buffer:
 
   ```c
-  size_t tpw_filter_port_event_count(tpw_filter_port_h port);
+  size_t tpw_filter_port_get_event_count(tpw_filter_port_h port);
   int tpw_filter_port_get_event(tpw_filter_port_h port, size_t index, tpw_event* out);
   int tpw_filter_port_push_event(tpw_filter_port_h port, const tpw_event* event);
   ```
@@ -92,7 +92,7 @@ typedef struct { int fd; uint32_t offset; uint32_t stride; uint32_t size; } tpw_
 
 tpw_filter_port_h tpw_filter_add_video_port_ex(tpw_filter_h filter, tpw_filter_port_direction direction,
                                                const tpw_video_config* config, const tpw_filter_port_opts* opts);
-size_t tpw_filter_port_buffer_dmabuf(const tpw_filter_port_buffer* buf, tpw_dmabuf_plane* planes, size_t max_planes);
+size_t tpw_filter_port_get_dmabuf_planes(const tpw_filter_port_buffer* buf, tpw_dmabuf_plane* planes, size_t planes_len);
 int tpw_filter_port_set_hold(tpw_filter_port_h port, bool enable);
 int tpw_filter_set_period_hint(tpw_filter_h filter, uint32_t max_period_ns);
 ```
@@ -102,7 +102,7 @@ int tpw_filter_set_period_hint(tpw_filter_h filter, uint32_t max_period_ns);
   negotiate DMABUF frames (import-only; the source allocates, the filter
   consumes the fd). `opts == NULL` is exactly `tpw_filter_add_video_port()`.
   On such a port the buffer's `data` is NULL; read the frame's planes with
-  `tpw_filter_port_buffer_dmabuf()`, which returns the plane count and fills
+  `tpw_filter_port_get_dmabuf_planes()`, which returns the plane count and fills
   `fd`/`offset`/`stride`/`size` per plane. It returns 0 for a non-DMABUF
   port, never fabricating an fd. If the linked source cannot provide DMABUF,
   the port simply delivers no buffers and the condition is logged — there is

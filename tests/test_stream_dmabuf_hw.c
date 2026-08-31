@@ -36,7 +36,7 @@ static void on_data(tpw_stream_h stream, const tpw_stream_buffer* buf, void* use
         c->saw_pts++;
 
     tpw_dmabuf_plane plane;
-    if (tpw_stream_buffer_dmabuf(stream, &plane, 1) > 0) {
+    if (tpw_stream_get_dmabuf_planes(stream, &plane, 1) > 0) {
         c->dmabuf_frames++;
         c->last_fd = plane.fd;
     }
@@ -62,7 +62,7 @@ static void on_plane_data(tpw_stream_h stream, const tpw_stream_buffer* buf, voi
     c->frames++;
 
     tpw_dmabuf_plane planes[4];
-    size_t n = tpw_stream_buffer_dmabuf(stream, planes, 4);
+    size_t n = tpw_stream_get_dmabuf_planes(stream, planes, 4);
     if (n > c->max_planes)
         c->max_planes = (unsigned)n;
     if (n >= 2)
