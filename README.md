@@ -151,6 +151,20 @@ source to a file:
 ./build/utils/tpw_record -o out.raw -t video --device v4l2_input.usb-... -d 5  # pick a camera
 ```
 
+`utils/tpw_stream_loopback.c` loops captured audio straight to the default
+output device and/or logs data callbacks from one or more video capture
+streams, using only the `tpw_stream` API. Video streams only log for now;
+rendering is a future addition once a UI backend option exists:
+
+```sh
+./build/utils/tpw_stream_loopback                                    # mic straight to the default output, until Ctrl+C
+./build/utils/tpw_stream_loopback --device alsa_input.usb-... -d 10  # pick a source, 10 seconds
+./build/utils/tpw_stream_loopback --sample-rate 44100 --channels 1 --bits 24  # 44.1kHz mono, 24-bit
+
+./build/utils/tpw_stream_loopback --no-audio --video-streams 2 -d 5  # log two default-camera streams, no audio
+./build/utils/tpw_stream_loopback --video-streams 1 --dmabuf --fps 30 --width 1280 --height 720  # DMABUF, 720p30
+```
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
