@@ -163,7 +163,13 @@ rendering is a future addition once a UI backend option exists:
 
 ./build/utils/tpw_stream_loopback --no-audio --video-streams 2 -d 5  # log two default-camera streams, no audio
 ./build/utils/tpw_stream_loopback --video-streams 1 --dmabuf --fps 30 --width 1280 --height 720  # DMABUF, 720p30
+./build/utils/tpw_stream_loopback --video-streams 1 --pixel-format MJPG  # ask the camera for MJPG instead
 ```
+
+The pixel format is negotiated with the camera as-is, with no conversion in
+between, so `--pixel-format` only accepts what the source itself offers. The
+default `YUYV` and `MJPG` are the usual safe picks for UVC webcams; an
+unsupported format ends the stream with `source lost (error -5)`.
 
 ## License
 
