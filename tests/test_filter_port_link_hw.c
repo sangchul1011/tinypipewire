@@ -37,7 +37,7 @@ static void on_process(tpw_filter_h filter, tpw_filter_port_buffer* buffers, siz
 
     for (size_t i = 0; i < n_buffers; i++) {
         tpw_dmabuf_plane plane;
-        if (tpw_filter_port_buffer_dmabuf(&buffers[i], &plane, 1) > 0) {
+        if (tpw_filter_port_get_dmabuf_planes(&buffers[i], &plane, 1) > 0) {
             c->dmabuf_frames++;
             c->last_fd = plane.fd;
             if (buffers[i].fresh)

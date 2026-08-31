@@ -28,7 +28,7 @@ static void on_process(tpw_filter_h filter, tpw_filter_port_buffer* buffers, siz
     tpw_filter_port_buffer* sig = &buffers[1];
 
     tpw_dmabuf_plane planes[4];
-    size_t n_planes = tpw_filter_port_buffer_dmabuf(video, planes, 4);
+    size_t n_planes = tpw_filter_port_get_dmabuf_planes(video, planes, 4);
 
     /* With hold enabled, `fresh` distinguishes a newly captured frame from
      * a re-presented one; `seq` counts genuinely new frames. */

@@ -7,8 +7,8 @@
 #include "tpw_log_internal.h"
 #include "tpw_spa_format_internal.h"
 
-size_t tpw_filter_port_buffer_dmabuf(const tpw_filter_port_buffer* buf, tpw_dmabuf_plane* planes,
-                                     size_t planes_len)
+size_t tpw_filter_port_get_dmabuf_planes(const tpw_filter_port_buffer* buf, tpw_dmabuf_plane* planes,
+                                          size_t planes_len)
 {
     if (!buf)
         return 0;
