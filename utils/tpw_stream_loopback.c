@@ -175,7 +175,8 @@ static void print_usage(const char* prog)
         "\n"
         "  audio (on by default):\n"
         "      --no-audio           disable the audio loopback\n"
-        "      --device <name>      capture node name or serial (see `wpctl status`)\n"
+        "      --device <name>      capture node name or serial (see `wpctl status`);\n"
+        "                           a name no node matches falls back to the default\n"
         "      --sample-rate <hz>   capture/playback sample rate (default: 48000)\n"
         "      --channels <n>       channel count (default: 2)\n"
         "      --bits 16|24|32|f32  sample format: signed int bit depth, or f32 for\n"
@@ -409,9 +410,17 @@ int main(int argc, char** argv)
         }
     }
 
-    if (audio_enabled)
-        fprintf(stderr, "tpw_stream_loopback: audio loopback active (%dHz, %dch, %s%s)\n", sample_rate, channels,
-                audio_format ? audio_format : "S16", device ? ", device set" : "");
+    if (audio_enabled) {
+        fprintf(stderr, "tpw_stream_loopback: audio loopback active (%dHz, %dch, %s)\n", sample_rate, channels,
+                audio_format ? audio_format : "S16");
+        /* The target is only a hint: an unknown name leaves the session
+         * manager free to pick the default source instead. */
+        if (device)
+            fprintf(stderr,
+                    "tpw_stream_loopback: capture device requested: '%s' (a name no node matches\n"
+                    "                     falls back to the default source; verify with `pw-link -l`)\n",
+                    device);
+    }
     if (video_streams_n > 0)
         fprintf(stderr, "tpw_stream_loopback: %d video stream(s) logging (%s, %s, %dx%d, fps=%s)\n",
                 video_streams_n, use_dmabuf ? "dmabuf" : "cpu-mapped", pixel_format, width, height,
