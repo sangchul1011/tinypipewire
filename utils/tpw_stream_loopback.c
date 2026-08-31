@@ -184,7 +184,8 @@ static void print_usage(const char* prog)
         "  video (off by default):\n"
         "      --video-streams <n>  number of video capture streams to open (default: 0)\n"
         "      --dmabuf             negotiate DMABUF frames instead of CPU-mapped\n"
-        "      --pixel-format <fmt> RGB, YUYV, NV12, NV21, I420, or MJPG (default: I420)\n"
+        "      --pixel-format <fmt> RGB, YUYV, NV12, NV21, I420, or MJPG (default: YUYV;\n"
+        "                           the source must support it, no conversion)\n"
         "      --fps <n>            frame rate; 0 lets the source pick it (default: 0)\n"
         "      --width <px>         frame width (default: 640)\n"
         "      --height <px>        frame height (default: 480)\n"
@@ -206,7 +207,7 @@ int main(int argc, char** argv)
 
     int video_streams_n = 0;
     bool use_dmabuf = false;
-    const char* pixel_format = "I420";
+    const char* pixel_format = "YUYV";
     int fps = 0;
     int width = 640;
     int height = 480;
