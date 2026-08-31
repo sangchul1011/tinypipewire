@@ -52,7 +52,7 @@ typedef enum {
  * valid only for the duration of the data callback.
  */
 typedef struct {
-    void* data;  /**< Captured bytes, or NULL when the stream negotiated DMABUF (see tpw_stream_buffer_dmabuf()). */
+    void* data;  /**< Captured bytes, or NULL when the stream negotiated DMABUF (see tpw_stream_get_dmabuf_planes()). */
     size_t size; /**< Bytes available at `data`; 0 when `data` is NULL. */
     int64_t pts; /**< Capture timestamp in nanoseconds (the driver clock used by the underlying SPA node, e.g. ALSA or V4L2), or -1 if the buffer carried no timestamp metadata. */
 } tpw_stream_buffer;
@@ -287,7 +287,7 @@ typedef struct {
  * Equivalent to tpw_stream_set_video_config() when `opts` is NULL. With
  * opts->memory == TPW_PORT_MEMORY_DMABUF, the stream negotiates DMABUF
  * frames: tpw_stream_buffer.data is NULL for each delivered frame and
- * planes are read via tpw_stream_buffer_dmabuf(). Video capture only —
+ * planes are read via tpw_stream_get_dmabuf_planes(). Video capture only —
  * the same type/direction rejection as tpw_stream_set_video_config()
  * applies, so calling this on an audio or playback stream returns
  * TPW_STREAM_ERR_INVALID_ARG.
@@ -324,7 +324,7 @@ int tpw_stream_set_video_config_ex(tpw_stream_h stream, const tpw_video_config* 
  * @param[in]  planes_len Capacity of `planes`.
  * @return The plane count actually available, which may exceed `planes_len` if it was too small; 0 for a non-DMABUF stream or a cycle with no buffer, and `planes` is left unwritten.
  */
-size_t tpw_stream_buffer_dmabuf(tpw_stream_h stream, tpw_dmabuf_plane* planes, size_t planes_len);
+size_t tpw_stream_get_dmabuf_planes(tpw_stream_h stream, tpw_dmabuf_plane* planes, size_t planes_len);
 
 /**
  * @brief Starts data delivery. Requires a format to already be set.

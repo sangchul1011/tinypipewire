@@ -28,7 +28,7 @@ void tpw_stream_dmabuf_log_unavailable(struct tpw_stream* stream)
                     "the stream will deliver no frames");
 }
 
-size_t tpw_stream_buffer_dmabuf(tpw_stream_h handle, tpw_dmabuf_plane* planes, size_t planes_len)
+size_t tpw_stream_get_dmabuf_planes(tpw_stream_h handle, tpw_dmabuf_plane* planes, size_t planes_len)
 {
     struct tpw_stream* stream = (struct tpw_stream*)handle;
     if (!stream || !stream->current_dmabuf_buf)

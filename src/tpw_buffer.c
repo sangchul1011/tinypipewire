@@ -9,7 +9,7 @@
 
 /* Hands the current DMABUF-backed buffer to the callback with no CPU
  * data, then warns once per interval if the callback never read its
- * descriptor through tpw_stream_buffer_dmabuf(). */
+ * descriptor through tpw_stream_get_dmabuf_planes(). */
 static void tpw_stream_deliver_dmabuf(struct tpw_stream* stream, struct spa_buffer* buf, int64_t pts)
 {
     stream->current_dmabuf_buf = buf;
@@ -24,7 +24,7 @@ static void tpw_stream_deliver_dmabuf(struct tpw_stream* stream, struct spa_buff
         tpw_rate_limited(&stream->dmabuf_unretrieved_last_log_ns, &stream->dmabuf_unretrieved_suppressed,
                           tpw_monotonic_ns())) {
         tpw_log_warning("stream: a DMABUF frame's descriptor was never read via "
-                        "tpw_stream_buffer_dmabuf() (%llu more suppressed)",
+                        "tpw_stream_get_dmabuf_planes() (%llu more suppressed)",
                         (unsigned long long)stream->dmabuf_unretrieved_suppressed);
         stream->dmabuf_unretrieved_suppressed = 0;
     }

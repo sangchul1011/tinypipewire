@@ -178,14 +178,14 @@ typedef struct { tpw_port_memory memory; } tpw_stream_dmabuf_opts;
 
 int tpw_stream_set_video_config_ex(tpw_stream_h stream, const tpw_video_config* config,
                                     const tpw_stream_dmabuf_opts* opts);
-size_t tpw_stream_buffer_dmabuf(tpw_stream_h stream, tpw_dmabuf_plane* planes, size_t planes_len);
+size_t tpw_stream_get_dmabuf_planes(tpw_stream_h stream, tpw_dmabuf_plane* planes, size_t planes_len);
 ```
 
 `tpw_stream_set_video_config_ex()` with `opts->memory == TPW_PORT_MEMORY_DMABUF`
 requests DMABUF-capable capture; `opts == NULL` is exactly
 `tpw_stream_set_video_config()`, unchanged. On a DMABUF stream every
 delivered `tpw_stream_buffer.data` is NULL — read the frame's planes with
-`tpw_stream_buffer_dmabuf()`, which returns the plane count and fills
+`tpw_stream_get_dmabuf_planes()`, which returns the plane count and fills
 `fd`/`offset`/`stride`/`size` per plane (one for RGB/YUYV, more for planar
 formats like NV12/I420). It returns 0 for a non-DMABUF stream, never
 fabricating an fd, and the `fd` is borrowed for the callback only. If the
