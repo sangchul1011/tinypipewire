@@ -31,13 +31,18 @@ int tpw_stream_set_video_config_ex(tpw_stream_h handle, const tpw_video_config* 
 
     uint8_t buffer[1024];
     struct spa_pod_builder b = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
-    const struct spa_pod* params[2];
+    const struct spa_pod* params[3];
     params[0] = is_mjpg ? tpw_spa_build_video_format_mjpg(&b, config) : tpw_spa_build_video_format(&b, config, fmt);
     params[1] = tpw_spa_build_meta_header(&b);
+    /* DMABUF's dataType is applied later in param_changed (add-time crashes
+     * 1.0.5); restricting it here too would fight that deferred param. */
+    uint32_t n_params = 2;
+    if (!use_dmabuf)
+        params[n_params++] = tpw_spa_build_cpu_buffers(&b);
 
     /* tpw_stream_internal_connect() owns stream->use_dmabuf: it must set
      * it only once the new pw_stream exists, not before. */
-    int res = tpw_stream_internal_connect(stream, params, 2, use_dmabuf);
+    int res = tpw_stream_internal_connect(stream, params, n_params, use_dmabuf);
     if (res < 0)
         return res;
 

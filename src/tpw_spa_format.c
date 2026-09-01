@@ -144,6 +144,15 @@ const struct spa_pod* tpw_spa_build_dmabuf_buffers(struct spa_pod_builder* b, un
         SPA_PARAM_BUFFERS_dataType, SPA_POD_Int(1 << SPA_DATA_DmaBuf));
 }
 
+const struct spa_pod* tpw_spa_build_cpu_buffers(struct spa_pod_builder* b)
+{
+    /* Excludes DmaBuf, which a source could otherwise offer alongside
+     * MemPtr even though nothing here opted into DMABUF import. */
+    return spa_pod_builder_add_object(b,
+        SPA_TYPE_OBJECT_ParamBuffers, SPA_PARAM_Buffers,
+        SPA_PARAM_BUFFERS_dataType, SPA_POD_Int((1 << SPA_DATA_MemPtr) | (1 << SPA_DATA_MemFd)));
+}
+
 const struct spa_pod* tpw_spa_build_meta_header(struct spa_pod_builder* b)
 {
     return spa_pod_builder_add_object(b,

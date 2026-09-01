@@ -33,11 +33,12 @@ int tpw_stream_set_audio_config(tpw_stream_h handle, const tpw_audio_config* con
 
     uint8_t buffer[1024];
     struct spa_pod_builder b = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
-    const struct spa_pod* params[2];
+    const struct spa_pod* params[3];
     params[0] = tpw_spa_build_audio_format(&b, config, fmt);
     params[1] = tpw_spa_build_meta_header(&b);
+    params[2] = tpw_spa_build_cpu_buffers(&b);
 
-    int res = tpw_stream_internal_connect(stream, params, 2, false);
+    int res = tpw_stream_internal_connect(stream, params, 3, false);
     if (res < 0)
         return res;
 
