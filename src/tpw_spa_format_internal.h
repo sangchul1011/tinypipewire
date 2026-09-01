@@ -57,6 +57,10 @@ const struct spa_pod* tpw_spa_build_event_format(struct spa_pod_builder* b);
  * (never at add time — crashes PipeWire 1.0.5). */
 const struct spa_pod* tpw_spa_build_dmabuf_buffers(struct spa_pod_builder* b, unsigned int extra_buffers);
 
+/* Builds a SPA_PARAM_Buffers POD restricting dataType to CPU-mappable
+ * memory (MemPtr|MemFd), excluding DmaBuf, for a non-DMABUF port/stream. */
+const struct spa_pod* tpw_spa_build_cpu_buffers(struct spa_pod_builder* b);
+
 /* Requests SPA_META_Header on negotiated buffers, so a source that can
  * attach a capture timestamp does so. Without this the pts in
  * tpw_stream_buffer/tpw_filter_port_buffer is always -1. */
