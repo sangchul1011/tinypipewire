@@ -82,7 +82,7 @@ int main(void)
     while (g_running)
         sleep(1);
 
-    tpw_filter_stop(filter);
+    tpw_filter_stop(filter, false);
     tpw_filter_destroy(filter);
     return 0;
 }

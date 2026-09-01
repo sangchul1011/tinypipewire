@@ -42,7 +42,7 @@ int main(void)
     TPW_ASSERT(g_cycles > 0);
     TPW_ASSERT_EQ(g_last_n_buffers, (size_t)2);
 
-    tpw_filter_stop(filter);
+    tpw_filter_stop(filter, false);
     tpw_filter_destroy(filter);
 
     /* Adding a signal port after the filter has started is rejected. */
@@ -52,7 +52,7 @@ int main(void)
                                           &(tpw_audio_config){ .sample_rate = 48000, .channels = 2 }) != NULL);
     TPW_ASSERT_EQ(tpw_filter_start(started), TPW_STREAM_OK);
     TPW_ASSERT(tpw_filter_add_signal_port(started, TPW_FILTER_PORT_OUTPUT) == NULL);
-    tpw_filter_stop(started);
+    tpw_filter_stop(started, false);
     tpw_filter_destroy(started);
 
     return 0;

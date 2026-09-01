@@ -43,7 +43,7 @@ int main(void)
     /* Rejected after start (it is a connect-time node property). */
     TPW_ASSERT_EQ(tpw_filter_set_period_hint(filter, 5000000), TPW_STREAM_ERR_NOT_CONFIGURED);
 
-    tpw_filter_stop(filter);
+    tpw_filter_stop(filter, false);
     tpw_filter_destroy(filter);
     return 0;
 }

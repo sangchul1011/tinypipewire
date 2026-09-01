@@ -207,7 +207,7 @@ static void test_app_thread_push_still_works(void)
     TPW_ASSERT(tpw_filter_processing == NULL);
     TPW_ASSERT_EQ(tpw_filter_push_port_data(handle, in, &v, sizeof(v), -1), TPW_STREAM_OK);
 
-    tpw_filter_stop(handle);
+    tpw_filter_stop(handle, false);
     tpw_filter_destroy(handle);
 }
 

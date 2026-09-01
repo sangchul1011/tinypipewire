@@ -127,7 +127,7 @@ static void measure(const char* sensor, uint32_t hint_ns, struct run* out)
 
     TPW_ASSERT_EQ(tpw_filter_start(filter), TPW_STREAM_OK);
     usleep(RUN_MS * 1000);
-    tpw_filter_stop(filter);
+    tpw_filter_stop(filter, false);
     tpw_filter_destroy(filter);
 
     *out = r;

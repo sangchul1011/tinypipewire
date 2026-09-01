@@ -84,7 +84,7 @@ int main(void)
 
     /* stop() must actually halt delivery, not just stop returning new
      * cycles eventually — no further cycles once stopped. */
-    tpw_filter_stop(filter);
+    tpw_filter_stop(filter, false);
     int cycles_after_stop = g_cycles;
     sleep(1);
     TPW_ASSERT_EQ(g_cycles, cycles_after_stop);
@@ -110,7 +110,7 @@ int main(void)
     TPW_ASSERT_EQ(g_mixed_n_buffers, (size_t)4);
     TPW_ASSERT_EQ(g_mixed_event_pts, (int64_t)-1);
 
-    tpw_filter_stop(mixed);
+    tpw_filter_stop(mixed, false);
     tpw_filter_destroy(mixed);
 
     /* A DMABUF video input port mixed with audio and signal ports must
@@ -131,7 +131,7 @@ int main(void)
     TPW_ASSERT(g_dmabuf_mixed_cycles > 0);
     TPW_ASSERT_EQ(g_dmabuf_mixed_n_buffers, (size_t)3);
 
-    tpw_filter_stop(dmabuf_mixed);
+    tpw_filter_stop(dmabuf_mixed, false);
     tpw_filter_destroy(dmabuf_mixed);
 
     /* More ports than the internal stack-allocation threshold (8) must
@@ -150,7 +150,7 @@ int main(void)
     TPW_ASSERT(g_many_cycles > 0);
     TPW_ASSERT_EQ(g_many_n_buffers, n_ports);
 
-    tpw_filter_stop(many);
+    tpw_filter_stop(many, false);
     tpw_filter_destroy(many);
     return 0;
 }

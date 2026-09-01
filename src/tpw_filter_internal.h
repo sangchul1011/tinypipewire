@@ -157,6 +157,10 @@ struct tpw_filter {
     struct pw_filter* pw_filter;
     struct spa_hook filter_listener;
 
+    /* Set false, then true by .drained, around a draining
+     * tpw_filter_stop()'s pw_filter_flush() call. */
+    bool drained;
+
     /* Optional preferred maximum bundling period (nanoseconds); 0 = unset.
      * Applied as a node.latency preference before the first connect. */
     uint32_t period_hint_ns;
