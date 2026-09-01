@@ -335,10 +335,18 @@ int tpw_stream_start(tpw_stream_h stream);
 
 /**
  * @brief Stops data delivery; the stream may be started again later.
+ *
+ * With `drain` true, blocks until every buffer already queued has
+ * actually been played (a playback stream) or delivered to the data
+ * callback (a capture stream), so nothing already queued is lost. If
+ * that does not complete within a few seconds (a lost device, for
+ * instance), a warning is logged and the stream stops anyway.
+ *
  * @param stream The stream to stop.
+ * @param drain  true to wait for what is already queued to finish first.
  * @return TPW_STREAM_OK, or TPW_STREAM_ERR_INVALID_ARG for a NULL `stream`.
  */
-int tpw_stream_stop(tpw_stream_h stream);
+int tpw_stream_stop(tpw_stream_h stream, bool drain);
 
 /**
  * @brief Releases all resources owned by `stream`.

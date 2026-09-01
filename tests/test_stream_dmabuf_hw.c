@@ -90,7 +90,7 @@ static void check_multiplane_format(const char* camera, const char* pixel_format
     }
 
     usleep(RUN_USEC);
-    tpw_stream_stop(s);
+    tpw_stream_stop(s, false);
     tpw_stream_destroy(s);
 
     if (c.frames == 0 || c.max_planes == 0) {
@@ -130,7 +130,7 @@ int main(void)
 
     usleep(RUN_USEC);
 
-    TPW_ASSERT_EQ(tpw_stream_stop(stream), TPW_STREAM_OK);
+    TPW_ASSERT_EQ(tpw_stream_stop(stream, false), TPW_STREAM_OK);
     tpw_stream_destroy(stream);
 
     printf("frames=%u dmabuf_frames=%u last_fd=%d pts_seen=%u\n", c.frames, c.dmabuf_frames, c.last_fd,

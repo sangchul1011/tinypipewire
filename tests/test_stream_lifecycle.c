@@ -30,14 +30,14 @@ int main(void)
 
     TPW_ASSERT_EQ(tpw_stream_start(s2), TPW_STREAM_OK);
     sleep(1);
-    TPW_ASSERT_EQ(tpw_stream_stop(s2), TPW_STREAM_OK);
+    TPW_ASSERT_EQ(tpw_stream_stop(s2, false), TPW_STREAM_OK);
     int calls_after_stop = g_data_calls;
     sleep(1);
     TPW_ASSERT_EQ(g_data_calls, calls_after_stop); /* no delivery once stopped */
 
     TPW_ASSERT_EQ(tpw_stream_start(s2), TPW_STREAM_OK); /* restart after stop */
     sleep(1);
-    TPW_ASSERT_EQ(tpw_stream_stop(s2), TPW_STREAM_OK);
+    TPW_ASSERT_EQ(tpw_stream_stop(s2, false), TPW_STREAM_OK);
     tpw_stream_destroy(s2);
 
     /* destroy() while running must stop delivery and release resources safely. */
@@ -61,7 +61,7 @@ int main(void)
 
     tpw_stream_destroy(audio);
     sleep(1);
-    TPW_ASSERT_EQ(tpw_stream_stop(video), TPW_STREAM_OK); /* video unaffected by audio's destroy */
+    TPW_ASSERT_EQ(tpw_stream_stop(video, false), TPW_STREAM_OK); /* video unaffected by audio's destroy */
     tpw_stream_destroy(video);
 
     return 0;

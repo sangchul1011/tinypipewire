@@ -8,6 +8,10 @@
 #include "tpw_log_internal.h"
 #include "tpw_stream_internal.h"
 
+/* How long tpw_stream_stop(..., true) waits for a flush to actually drain
+ * before giving up and stopping anyway. */
+#define TPW_STREAM_DRAIN_TIMEOUT_NSEC (5 * SPA_NSEC_PER_SEC)
+
 void tpw_stream_on_state_changed(void* data, enum pw_stream_state old, enum pw_stream_state state,
                                   const char* error)
 {
@@ -53,17 +57,29 @@ static void tpw_stream_on_param_changed(void* data, uint32_t id, const struct sp
     }
 }
 
+/* Wakes a draining tpw_stream_stop(..., true), waiting on this same flag
+ * under stream->conn.loop's lock. Shared by both directions: PipeWire
+ * drains "played or recorded" data alike. */
+static void tpw_stream_on_drained(void* data)
+{
+    struct tpw_stream* stream = data;
+    stream->drained = true;
+    pw_thread_loop_signal(stream->conn.loop, false);
+}
+
 static const struct pw_stream_events tpw_stream_events = {
     PW_VERSION_STREAM_EVENTS,
     .state_changed = tpw_stream_on_state_changed,
     .param_changed = tpw_stream_on_param_changed,
     .process = tpw_stream_on_process,
+    .drained = tpw_stream_on_drained,
 };
 
 static const struct pw_stream_events tpw_stream_playback_events = {
     PW_VERSION_STREAM_EVENTS,
     .state_changed = tpw_stream_on_state_changed,
     .process = tpw_stream_on_process_playback,
+    .drained = tpw_stream_on_drained,
 };
 
 static void tpw_stream_teardown(struct tpw_stream* stream)
@@ -271,7 +287,7 @@ int tpw_stream_start(tpw_stream_h handle)
     return TPW_STREAM_OK;
 }
 
-int tpw_stream_stop(tpw_stream_h handle)
+int tpw_stream_stop(tpw_stream_h handle, bool drain)
 {
     struct tpw_stream* stream = (struct tpw_stream*)handle;
     if (!stream)
@@ -280,6 +296,21 @@ int tpw_stream_stop(tpw_stream_h handle)
         return TPW_STREAM_OK;
 
     pw_thread_loop_lock(stream->conn.loop);
+
+    if (drain) {
+        struct timespec deadline;
+        stream->drained = false;
+        pw_thread_loop_get_time(stream->conn.loop, &deadline, TPW_STREAM_DRAIN_TIMEOUT_NSEC);
+        pw_stream_flush(stream->pw_stream, true);
+
+        while (!stream->drained) {
+            if (pw_thread_loop_timed_wait_full(stream->conn.loop, &deadline) < 0) {
+                tpw_log_warning("stream: timed out waiting to drain; stopping anyway");
+                break;
+            }
+        }
+    }
+
     pw_stream_set_active(stream->pw_stream, false);
     pw_thread_loop_unlock(stream->conn.loop);
 
@@ -294,7 +325,7 @@ void tpw_stream_destroy(tpw_stream_h handle)
         return;
 
     if (stream->state == TPW_STREAM_STATE_RUNNING)
-        tpw_stream_stop(handle);
+        tpw_stream_stop(handle, false);
 
     /* Destroy releases the wiring; stop deliberately does not, so a stopped
      * stream resumes on the same device. The registry must go while the loop

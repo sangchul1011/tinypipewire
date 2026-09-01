@@ -223,7 +223,7 @@ static void test_start_requires_a_format(void)
     TPW_ASSERT(handle != NULL);
 
     TPW_ASSERT_EQ(tpw_stream_start(handle), TPW_STREAM_ERR_NOT_CONFIGURED);
-    TPW_ASSERT_EQ(tpw_stream_stop(handle), TPW_STREAM_OK); /* stopping an idle stream is a no-op */
+    TPW_ASSERT_EQ(tpw_stream_stop(handle, false), TPW_STREAM_OK); /* stopping an idle stream is a no-op */
 
     tpw_stream_destroy(handle);
 }

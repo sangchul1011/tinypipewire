@@ -94,7 +94,7 @@ int main(int argc, char** argv)
     printf("linked to %s — check pw-link -l again\n", argv[1]);
 
     wait_for_enter("press Enter to stop and start (links must survive)... ");
-    tpw_stream_stop(s);
+    tpw_stream_stop(s, false);
     printf("stopped; links are still there\n");
     tpw_stream_start(s);
     printf("started again on the same device\n");
@@ -113,7 +113,7 @@ int main(int argc, char** argv)
         sleep(1);
 
     printf("%u buffers received\n", g_buffers);
-    tpw_stream_stop(s);
+    tpw_stream_stop(s, false);
     tpw_stream_destroy(s);
     return 0;
 }
