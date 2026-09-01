@@ -57,6 +57,10 @@ struct tpw_stream {
     uint64_t unusable_last_log_ns;
     uint64_t unusable_suppressed;
 
+    /* Set false, then true by .drained, around a draining
+     * tpw_stream_stop()'s pw_stream_flush() call. */
+    bool drained;
+
     /* Video capture only, cycle-scoped: current_dmabuf_buf/dmabuf_retrieved
      * are set before the data callback and cleared after. The rate-limit
      * pair below tracks an unretrieved descriptor, not the buffer above. */

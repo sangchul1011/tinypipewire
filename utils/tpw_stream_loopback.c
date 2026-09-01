@@ -432,18 +432,18 @@ int main(int argc, char** argv)
 
 cleanup:
     for (int i = 0; i < video_started; i++) {
-        tpw_stream_stop(video_streams[i]);
+        tpw_stream_stop(video_streams[i], false);
         tpw_stream_destroy(video_streams[i]);
     }
     free(video_streams);
     free(video_ctxs);
 
     if (audio_playback) {
-        tpw_stream_stop(audio_playback);
+        tpw_stream_stop(audio_playback, false);
         tpw_stream_destroy(audio_playback);
     }
     if (audio_capture) {
-        tpw_stream_stop(audio_capture);
+        tpw_stream_stop(audio_capture, false);
         tpw_stream_destroy(audio_capture);
     }
     size_t dropped = ring.data ? atomic_load_explicit(&ring.dropped, memory_order_relaxed) : 0;

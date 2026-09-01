@@ -94,7 +94,7 @@ int main(int argc, char** argv)
         printf("playback: next samples land at pts=%lld ns\n", (long long)last_pts);
     }
 
-    tpw_stream_stop(stream);
+    tpw_stream_stop(stream, false);
     tpw_stream_destroy(stream);
     return 0;
 }

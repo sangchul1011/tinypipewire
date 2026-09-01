@@ -97,7 +97,7 @@ static void link_immediately_after_start(const char* device)
     /* No settling delay on purpose. */
     TPW_ASSERT_EQ(tpw_stream_link(s, device), TPW_STREAM_OK);
 
-    tpw_stream_stop(s);
+    tpw_stream_stop(s, false);
     tpw_stream_destroy(s);
 }
 
@@ -131,7 +131,7 @@ static void exercise(tpw_stream_h s, const char* device)
 
     /* Stopping must NOT release the wiring — a stopped stream resumes on the
      * same device rather than silently running unconnected. */
-    TPW_ASSERT_EQ(tpw_stream_stop(s), TPW_STREAM_OK);
+    TPW_ASSERT_EQ(tpw_stream_stop(s, false), TPW_STREAM_OK);
     usleep(SETTLE_USEC);
     TPW_ASSERT_EQ(links_to(device), after);
 
@@ -158,7 +158,7 @@ static void exercise(tpw_stream_h s, const char* device)
 
     TPW_ASSERT_EQ(g_error, 0);
 
-    tpw_stream_stop(s);
+    tpw_stream_stop(s, false);
     tpw_stream_destroy(s);
 
     /* Destroy releases what stop kept. */
@@ -200,7 +200,7 @@ static void exercise_video(const char* camera)
     TPW_ASSERT(g_buffers > 0);
 
     /* Same lifetime rules as audio. */
-    TPW_ASSERT_EQ(tpw_stream_stop(s), TPW_STREAM_OK);
+    TPW_ASSERT_EQ(tpw_stream_stop(s, false), TPW_STREAM_OK);
     usleep(SETTLE_USEC);
     TPW_ASSERT_EQ(links_to(camera), after);
     TPW_ASSERT_EQ(tpw_stream_start(s), TPW_STREAM_OK);
@@ -214,7 +214,7 @@ static void exercise_video(const char* camera)
 
     TPW_ASSERT_EQ(g_error, 0);
 
-    tpw_stream_stop(s);
+    tpw_stream_stop(s, false);
     tpw_stream_destroy(s);
 }
 

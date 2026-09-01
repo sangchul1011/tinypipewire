@@ -76,7 +76,7 @@ int main(void)
     while (running)
         sleep(1);
 
-    tpw_stream_stop(s);
+    tpw_stream_stop(s, false);
     tpw_stream_destroy(s);
     return 0;
 }

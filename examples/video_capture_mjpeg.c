@@ -60,7 +60,7 @@ int main(void)
     while (g_running)
         sleep(1);
 
-    tpw_stream_stop(stream);
+    tpw_stream_stop(stream, false);
     tpw_stream_destroy(stream);
     return 0;
 }

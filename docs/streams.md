@@ -19,7 +19,7 @@ int tpw_stream_set_target(tpw_stream_h stream, const char* target);
 int tpw_stream_set_audio_config(tpw_stream_h stream, const tpw_audio_config* config);
 int tpw_stream_set_video_config(tpw_stream_h stream, const tpw_video_config* config);
 int tpw_stream_start(tpw_stream_h stream);
-int tpw_stream_stop(tpw_stream_h stream);
+int tpw_stream_stop(tpw_stream_h stream, bool drain);
 void tpw_stream_destroy(tpw_stream_h stream);
 ```
 
@@ -33,6 +33,15 @@ tpw_stream_set_audio_config(stream, &a);   /* format = NULL defaults to "S16" */
 tpw_video_config v = { .width = 640, .height = 480, .pixel_format = "YUYV", .fps = 30 };
 tpw_stream_set_video_config(stream, &v);   /* fps = 0 lets the source pick the rate */
 ```
+
+**Finishing cleanly.** `tpw_stream_stop(stream, false)` pauses immediately,
+which can cut off the last buffer or two already queued with the device —
+usually a few tens of milliseconds. `tpw_stream_stop(stream, true)` instead
+blocks the calling thread until everything already queued has actually been
+played (playback) or delivered to the data callback (capture) before
+pausing, so nothing is lost. If the device disappears mid-drain, a warning
+is logged and the stream stops anyway after a few seconds rather than
+blocking forever.
 
 ### Choosing a source
 
@@ -105,6 +114,8 @@ or perform I/O. A cycle whose callback overruns its budget is emitted as
 silence and logged — rate-limited to one report per second, so a persistently
 slow callback does not drown the log — and is never reported through the error
 callback, which stays reserved for the output device disappearing.
+`tpw_stream_stop(stream, true)` (see [Capture](#capture)) drains the
+device the same way as for a capture stream.
 
 ## Wiring a stream yourself
 

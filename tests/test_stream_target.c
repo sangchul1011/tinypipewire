@@ -26,7 +26,7 @@ int main(void)
     TPW_ASSERT_EQ(tpw_stream_set_audio_config(s, &(tpw_audio_config){ .sample_rate = 48000, .channels = 2 }), TPW_STREAM_OK);
     TPW_ASSERT_EQ(tpw_stream_start(s), TPW_STREAM_OK);
     sleep(1);
-    TPW_ASSERT_EQ(tpw_stream_stop(s), TPW_STREAM_OK);
+    TPW_ASSERT_EQ(tpw_stream_stop(s, false), TPW_STREAM_OK);
 
     /* Clearing back to NULL (falls back to auto-connect) is also accepted. */
     TPW_ASSERT_EQ(tpw_stream_set_target(s, NULL), TPW_STREAM_OK);

@@ -102,7 +102,7 @@ int main(void)
 
     usleep(RUN_USEC);
 
-    TPW_ASSERT_EQ(tpw_stream_stop(stream), TPW_STREAM_OK);
+    TPW_ASSERT_EQ(tpw_stream_stop(stream, false), TPW_STREAM_OK);
 
     printf("cycles=%u bytes=%zu pts=%s\n", c.cycles, c.bytes_asked,
            c.saw_pts ? "yes" : "no");
@@ -130,7 +130,16 @@ int main(void)
     usleep(200 * 1000);
     TPW_ASSERT(c.cycles > settled);
 
-    tpw_stream_stop(stream);
+    /* Drains, then stops like a plain stop: quiet and restartable. */
+    TPW_ASSERT_EQ(tpw_stream_stop(stream, true), TPW_STREAM_OK);
+    unsigned drained_at = c.cycles;
+    usleep(200 * 1000);
+    TPW_ASSERT_EQ(c.cycles, drained_at);
+    TPW_ASSERT_EQ(tpw_stream_start(stream), TPW_STREAM_OK);
+    usleep(200 * 1000);
+    TPW_ASSERT(c.cycles > drained_at);
+
+    tpw_stream_stop(stream, false);
     tpw_stream_destroy(stream);
     printf("test_stream_playback_hw: passed\n");
     return 0;

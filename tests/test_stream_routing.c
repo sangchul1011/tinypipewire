@@ -173,7 +173,7 @@ static void test_opted_out_and_unlinked_runs(void)
     TPW_ASSERT_EQ(tpw_stream_set_audio_config(s, &cfg), TPW_STREAM_OK);
     TPW_ASSERT_EQ(tpw_stream_start(s), TPW_STREAM_OK);
     TPW_ASSERT(((struct tpw_stream*)s)->links == NULL);
-    TPW_ASSERT_EQ(tpw_stream_stop(s), TPW_STREAM_OK);
+    TPW_ASSERT_EQ(tpw_stream_stop(s, false), TPW_STREAM_OK);
 
     tpw_stream_destroy(s);
 }

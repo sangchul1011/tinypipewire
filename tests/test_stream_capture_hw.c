@@ -65,7 +65,7 @@ static void run_video_capture(const char* camera)
     TPW_ASSERT_EQ(tpw_stream_link(s, camera), TPW_STREAM_OK);
 
     usleep(RUN_USEC);
-    TPW_ASSERT_EQ(tpw_stream_stop(s), TPW_STREAM_OK);
+    TPW_ASSERT_EQ(tpw_stream_stop(s, false), TPW_STREAM_OK);
     tpw_stream_destroy(s);
 
     printf("video: frames=%u non_null_data=%u pts_seen=%u\n", c.frames, c.saw_non_null_data, c.saw_pts);
@@ -98,7 +98,9 @@ static void run_audio_capture(const char* mic)
     TPW_ASSERT_EQ(tpw_stream_link(s, mic), TPW_STREAM_OK);
 
     usleep(RUN_USEC);
-    TPW_ASSERT_EQ(tpw_stream_stop(s), TPW_STREAM_OK);
+    /* Draining a capture stream waits for already-queued frames to reach
+     * this callback too, not just a playback stream's device. */
+    TPW_ASSERT_EQ(tpw_stream_stop(s, true), TPW_STREAM_OK);
     tpw_stream_destroy(s);
 
     printf("audio: frames=%u non_null_data=%u pts_seen=%u\n", c.frames, c.saw_non_null_data, c.saw_pts);
@@ -161,7 +163,7 @@ static void run_mjpg_capture_if_supported(const char* camera)
     }
 
     usleep(RUN_USEC);
-    TPW_ASSERT_EQ(tpw_stream_stop(s), TPW_STREAM_OK);
+    TPW_ASSERT_EQ(tpw_stream_stop(s, false), TPW_STREAM_OK);
     tpw_stream_destroy(s);
 
     printf("MJPG: frames=%u non_null_data=%u differing_sizes=%s\n", c.frames, c.saw_non_null_data,
