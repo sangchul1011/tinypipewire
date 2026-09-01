@@ -84,7 +84,7 @@ static void test_unresolvable_target(void)
      * nothing to unlink. */
     TPW_ASSERT_EQ(tpw_filter_port_unlink(in), TPW_STREAM_ERR_NOT_CONFIGURED);
 
-    tpw_filter_stop(handle);
+    tpw_filter_stop(handle, false);
     tpw_filter_destroy(handle);
 }
 
@@ -104,12 +104,12 @@ static void test_unlink_states(void)
     TPW_ASSERT_EQ(tpw_filter_port_unlink(in), TPW_STREAM_ERR_NOT_CONFIGURED);
 
     /* A restart is clean, and linking is still rejected while stopped. */
-    TPW_ASSERT_EQ(tpw_filter_stop(handle), TPW_STREAM_OK);
+    TPW_ASSERT_EQ(tpw_filter_stop(handle, false), TPW_STREAM_OK);
     TPW_ASSERT_EQ(tpw_filter_port_link(in, ABSENT_NODE), TPW_STREAM_ERR_NOT_CONFIGURED);
     TPW_ASSERT_EQ(tpw_filter_start(handle), TPW_STREAM_OK);
     TPW_ASSERT_EQ(tpw_filter_port_unlink(in), TPW_STREAM_ERR_NOT_CONFIGURED);
 
-    tpw_filter_stop(handle);
+    tpw_filter_stop(handle, false);
     tpw_filter_destroy(handle);
 }
 
@@ -159,7 +159,7 @@ static void test_source_unavailable_notification(void)
     tpw_filter_link_on_info(a, &no_state);
     TPW_ASSERT_EQ(g_error_calls, 1);
 
-    tpw_filter_stop(handle);
+    tpw_filter_stop(handle, false);
     tpw_filter_destroy(handle);
 }
 

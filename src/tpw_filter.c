@@ -11,6 +11,10 @@
 #include "tpw_log_internal.h"
 #include "tpw_spa_format_internal.h"
 
+/* How long tpw_filter_stop(..., true) waits for a flush to actually drain
+ * before giving up and stopping anyway. */
+#define TPW_FILTER_DRAIN_TIMEOUT_NSEC (5 * SPA_NSEC_PER_SEC)
+
 /* Reports a port that negotiated a format other than the one it asked for,
  * which happens when another consumer already configured the source. The
  * frame rate is not compared: fps == 0 asks the source to choose one. */
@@ -76,10 +80,20 @@ void tpw_filter_on_param_changed(void* data, void* port_data, uint32_t id, const
                           filter->user_data);
 }
 
+/* Wakes a draining tpw_filter_stop(..., true), waiting on this same flag
+ * under filter->conn.loop's lock. */
+static void tpw_filter_on_drained(void* data)
+{
+    struct tpw_filter* filter = data;
+    filter->drained = true;
+    pw_thread_loop_signal(filter->conn.loop, false);
+}
+
 static const struct pw_filter_events tpw_filter_events = {
     PW_VERSION_FILTER_EVENTS,
     .param_changed = tpw_filter_on_param_changed,
     .process = tpw_filter_on_process,
+    .drained = tpw_filter_on_drained,
 };
 
 bool tpw_filter_add_port_to_list(struct tpw_filter* filter, struct tpw_filter_port* port)
@@ -248,7 +262,7 @@ int tpw_filter_start(tpw_filter_h handle)
     return TPW_STREAM_OK;
 }
 
-int tpw_filter_stop(tpw_filter_h handle)
+int tpw_filter_stop(tpw_filter_h handle, bool drain)
 {
     struct tpw_filter* filter = (struct tpw_filter*)handle;
     if (!filter)
@@ -256,11 +270,25 @@ int tpw_filter_stop(tpw_filter_h handle)
     if (filter->state != TPW_FILTER_STATE_RUNNING)
         return TPW_STREAM_OK;
 
-    /* Drop any links first: they were made against the running graph and a
-     * restart re-links explicitly. */
-    tpw_filter_release_all_links(filter);
-
     pw_thread_loop_lock(filter->conn.loop);
+
+    if (drain) {
+        /* Must run before the links are dropped below, or a disconnected
+         * output port's queued data has nowhere left to go. */
+        struct timespec deadline;
+        filter->drained = false;
+        pw_thread_loop_get_time(filter->conn.loop, &deadline, TPW_FILTER_DRAIN_TIMEOUT_NSEC);
+        pw_filter_flush(filter->pw_filter, true);
+
+        while (!filter->drained) {
+            if (pw_thread_loop_timed_wait_full(filter->conn.loop, &deadline) < 0) {
+                tpw_log_warning("filter '%s': timed out waiting to drain; stopping anyway",
+                                filter->name ? filter->name : "tpw-filter");
+                break;
+            }
+        }
+    }
+
     pw_filter_set_active(filter->pw_filter, false);
     /* Return any held buffer to the pool now that processing is paused, and
      * reset per-port hold state so a restart begins holding afresh. */
@@ -277,6 +305,10 @@ int tpw_filter_stop(tpw_filter_h handle)
     }
     pw_thread_loop_unlock(filter->conn.loop);
 
+    /* Links were made against the running graph and a restart re-links
+     * explicitly, so they are dropped only now that processing is paused. */
+    tpw_filter_release_all_links(filter);
+
     filter->state = TPW_FILTER_STATE_STOPPED;
     return TPW_STREAM_OK;
 }
@@ -288,7 +320,7 @@ void tpw_filter_destroy(tpw_filter_h handle)
         return;
 
     if (filter->state == TPW_FILTER_STATE_RUNNING)
-        tpw_filter_stop(handle);
+        tpw_filter_stop(handle, false);
     else
         tpw_filter_release_all_links(filter);
 

@@ -55,7 +55,7 @@ int main(void)
     tpw_filter_on_param_changed(filter, (struct tpw_filter_port*)port_b, SPA_PARAM_Props, NULL);
     TPW_ASSERT_EQ(g_error_calls, 1);
 
-    tpw_filter_stop(handle);
+    tpw_filter_stop(handle, false);
     tpw_filter_destroy(handle);
     return 0;
 }

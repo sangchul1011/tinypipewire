@@ -86,7 +86,7 @@ int main(void)
         usleep(10000); /* 10 ms: faster than the 30 fps camera */
     }
 
-    tpw_filter_stop(filter);
+    tpw_filter_stop(filter, false);
     tpw_filter_destroy(filter);
     return 0;
 }

@@ -128,7 +128,7 @@ int main(int argc, char** argv)
     if (audio_in)
         tpw_filter_port_unlink(audio_in);
 
-    tpw_filter_stop(filter);
+    tpw_filter_stop(filter, false);
     tpw_filter_destroy(filter);
     return 0;
 }

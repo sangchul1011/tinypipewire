@@ -21,7 +21,7 @@ tpw_filter_port_h tpw_filter_add_event_port(tpw_filter_h filter, tpw_filter_port
 tpw_stream_type tpw_filter_port_get_type(tpw_filter_port_h port);
 int tpw_filter_push_port_data(tpw_filter_h filter, tpw_filter_port_h port, const void* data, size_t size, int64_t pts);
 int tpw_filter_start(tpw_filter_h filter);
-int tpw_filter_stop(tpw_filter_h filter);
+int tpw_filter_stop(tpw_filter_h filter, bool drain);
 void tpw_filter_destroy(tpw_filter_h filter);
 ```
 
@@ -43,6 +43,15 @@ buffer's capture timestamp in nanoseconds (from the underlying SPA
 node's clock, or from the `pts` a caller passed to
 `tpw_filter_push_port_data()`), or -1 if unavailable. It's always -1 on
 output ports and on event ports.
+
+**Finishing cleanly.** `tpw_filter_stop(filter, false)` pauses immediately,
+which can cut off the last buffer or two already queued — usually a few
+tens of milliseconds. `tpw_filter_stop(filter, true)` instead blocks the
+calling thread until everything already queued has actually been sent out
+an output port or handed to the processing callback on an input port
+before pausing, so nothing is lost. If that does not complete within a
+few seconds (a lost device, for instance), a warning is logged and the
+filter stops anyway.
 
 ## Signal and event ports
 

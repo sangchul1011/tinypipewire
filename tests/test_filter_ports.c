@@ -48,7 +48,7 @@ int main(void)
     /* Adding a port after the filter has started is rejected. */
     TPW_ASSERT(tpw_filter_add_audio_port(filter, TPW_FILTER_PORT_OUTPUT, &audio_cfg) == NULL);
 
-    tpw_filter_stop(filter);
+    tpw_filter_stop(filter, false);
     tpw_filter_destroy(filter);
 
     /* A filter with only output ports is also valid and can start. */

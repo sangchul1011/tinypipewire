@@ -190,7 +190,7 @@ int main(void)
     TPW_ASSERT(g_output_push_calls > 0);
     TPW_ASSERT_EQ(g_output_push_unexpected, 0);
 
-    tpw_filter_stop(filter);
+    tpw_filter_stop(filter, false);
     tpw_filter_destroy(filter);
 
     /* Adding an event port after the filter has started is rejected. */
@@ -200,7 +200,7 @@ int main(void)
                                           &(tpw_audio_config){ .sample_rate = 48000, .channels = 2 }) != NULL);
     TPW_ASSERT_EQ(tpw_filter_start(started), TPW_STREAM_OK);
     TPW_ASSERT(tpw_filter_add_event_port(started, TPW_FILTER_PORT_OUTPUT) == NULL);
-    tpw_filter_stop(started);
+    tpw_filter_stop(started, false);
     tpw_filter_destroy(started);
 
     return 0;

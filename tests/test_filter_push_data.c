@@ -51,7 +51,7 @@ int main(void)
     TPW_ASSERT_EQ(g_last_size, sizeof(second));
     TPW_ASSERT_EQ(g_last_pts, (int64_t)2000);
 
-    tpw_filter_stop(filter);
+    tpw_filter_stop(filter, false);
     tpw_filter_destroy(filter);
     return 0;
 }

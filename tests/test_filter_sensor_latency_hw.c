@@ -213,7 +213,7 @@ static void run_bundle(const char* camera, const char* mic, const char* sensor, 
     b.sampling = 0;
     pthread_join(sampler, NULL);
 
-    tpw_filter_stop(filter);
+    tpw_filter_stop(filter, false);
     tpw_filter_destroy(filter);
     *out = b;
 }

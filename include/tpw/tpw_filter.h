@@ -372,10 +372,18 @@ int tpw_filter_start(tpw_filter_h filter);
 
 /**
  * @brief Stops processing; the filter may be restarted via tpw_filter_start().
+ *
+ * With `drain` true, blocks until every buffer already queued has
+ * actually been sent out an output port or handed to the processing
+ * callback on an input port, so nothing already queued is lost. If
+ * that does not complete within a few seconds, a warning is logged
+ * and the filter stops anyway.
+ *
  * @param filter The filter to stop.
+ * @param drain  true to wait for what is already queued to finish first.
  * @return TPW_STREAM_OK, or a tpw_stream_error.
  */
-int tpw_filter_stop(tpw_filter_h filter);
+int tpw_filter_stop(tpw_filter_h filter, bool drain);
 
 /**
  * @brief Releases all resources owned by `filter`, including its ports

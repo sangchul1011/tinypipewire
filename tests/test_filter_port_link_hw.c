@@ -151,7 +151,7 @@ static void test_video_link(const char* camera, const char* mic)
         printf("  note: link established but no DMABUF frames negotiated\n");
     }
 
-    tpw_filter_stop(filter);
+    tpw_filter_stop(filter, false);
     /* stop() releases links on its own. */
     TPW_ASSERT_EQ(tpw_filter_port_unlink(video_in), TPW_STREAM_ERR_NOT_CONFIGURED);
     tpw_filter_destroy(filter);
@@ -179,7 +179,8 @@ static void test_audio_link(const char* mic)
     /* The microphone is driving the graph, so the filter must have run. */
     TPW_ASSERT(c.cycles > 0);
 
-    tpw_filter_stop(filter);
+    /* Draining waits for already-queued input to reach on_process too. */
+    TPW_ASSERT_EQ(tpw_filter_stop(filter, true), TPW_STREAM_OK);
     tpw_filter_destroy(filter);
 }
 
@@ -202,7 +203,7 @@ static void test_audio_raw_is_incompatible(const char* mic)
     /* Whatever the failure, no partial link may be left behind. */
     TPW_ASSERT_EQ(tpw_filter_port_unlink(audio_in), TPW_STREAM_ERR_NOT_CONFIGURED);
 
-    tpw_filter_stop(filter);
+    tpw_filter_stop(filter, false);
     tpw_filter_destroy(filter);
 }
 

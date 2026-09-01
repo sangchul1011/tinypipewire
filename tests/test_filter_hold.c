@@ -108,7 +108,7 @@ int main(void)
     TPW_ASSERT_EQ(g_hold_held_pts, (int64_t)2000);
     TPW_ASSERT_EQ(g_nohold_held, 0);
 
-    tpw_filter_stop(filter);
+    tpw_filter_stop(filter, false);
     tpw_filter_destroy(filter);
     return 0;
 }
