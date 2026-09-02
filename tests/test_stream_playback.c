@@ -50,10 +50,12 @@ static struct tpw_stream* make_stream(void)
 
 static void test_frame_size_helper(void)
 {
+    TPW_ASSERT_EQ(tpw_audio_bytes_per_frame(SPA_AUDIO_FORMAT_U8, 2), (size_t)2);
     TPW_ASSERT_EQ(tpw_audio_bytes_per_frame(SPA_AUDIO_FORMAT_S16, 2), (size_t)4);
     TPW_ASSERT_EQ(tpw_audio_bytes_per_frame(SPA_AUDIO_FORMAT_S24, 1), (size_t)3);
     TPW_ASSERT_EQ(tpw_audio_bytes_per_frame(SPA_AUDIO_FORMAT_S32, 2), (size_t)8);
     TPW_ASSERT_EQ(tpw_audio_bytes_per_frame(SPA_AUDIO_FORMAT_F32, 6), (size_t)24);
+    TPW_ASSERT_EQ(tpw_audio_bytes_per_frame(SPA_AUDIO_FORMAT_S24_32, 2), (size_t)8);
     TPW_ASSERT_EQ(tpw_audio_bytes_per_frame(SPA_AUDIO_FORMAT_S16, 0), (size_t)0);
     TPW_ASSERT_EQ(tpw_audio_bytes_per_frame(SPA_AUDIO_FORMAT_UNKNOWN, 2), (size_t)0);
 }

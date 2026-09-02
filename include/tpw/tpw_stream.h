@@ -218,7 +218,7 @@ int tpw_stream_unlink(tpw_stream_h stream);
 typedef struct {
     int sample_rate;    /**< Hz, e.g. 48000. */
     int channels;       /**< Channel count, e.g. 2. */
-    const char* format; /**< "S16", "S24", "S32", or "F32"; NULL defaults to "S16". */
+    const char* format; /**< "U8", "S16", "S24", "S24_32", "S32", or "F32"; NULL defaults to "S16". */
 } tpw_audio_config;
 
 /** @brief Video capture configuration passed to tpw_stream_set_video_config(). */
