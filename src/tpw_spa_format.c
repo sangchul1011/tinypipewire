@@ -14,8 +14,10 @@ static const struct {
     const char* name;
     enum spa_audio_format format;
 } tpw_audio_sample_formats[] = {
+    { "U8",  SPA_AUDIO_FORMAT_U8 },
     { "S16", SPA_AUDIO_FORMAT_S16 },
     { "S24", SPA_AUDIO_FORMAT_S24 },
+    { "S24_32", SPA_AUDIO_FORMAT_S24_32 },
     { "S32", SPA_AUDIO_FORMAT_S32 },
     { "F32", SPA_AUDIO_FORMAT_F32 },
 };

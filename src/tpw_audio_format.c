@@ -10,8 +10,10 @@ size_t tpw_audio_bytes_per_frame(enum spa_audio_format format, int channels)
 
     size_t sample;
     switch (format) {
+    case SPA_AUDIO_FORMAT_U8:  sample = 1; break;
     case SPA_AUDIO_FORMAT_S16: sample = 2; break;
     case SPA_AUDIO_FORMAT_S24: sample = 3; break; /* packed, not padded to 4 */
+    case SPA_AUDIO_FORMAT_S24_32:
     case SPA_AUDIO_FORMAT_S32:
     case SPA_AUDIO_FORMAT_F32: sample = 4; break;
     default: return 0;
