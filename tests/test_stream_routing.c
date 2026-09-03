@@ -178,6 +178,24 @@ static void test_opted_out_and_unlinked_runs(void)
     tpw_stream_destroy(s);
 }
 
+/* Works right after create(), before any format is set, and a NULL `out`
+ * is a safe count-only query — no assumption about what devices exist. */
+static void test_get_target_list(void)
+{
+    TPW_ASSERT_EQ(tpw_stream_get_target_list(NULL, NULL, 0), (size_t)0);
+
+    tpw_stream_h s = make_capture();
+    size_t count = tpw_stream_get_target_list(s, NULL, 0);
+
+    tpw_target_info targets[8];
+    size_t again = tpw_stream_get_target_list(s, targets, 8);
+    TPW_ASSERT_EQ(again, count);
+    for (size_t i = 0; i < again && i < 8; i++)
+        TPW_ASSERT(targets[i].name[0] != '\0');
+
+    tpw_stream_destroy(s);
+}
+
 /* Releasing an unlinked stream is safe to call from teardown paths. */
 static void test_release_is_safe_when_unlinked(void)
 {
@@ -200,6 +218,7 @@ int main(void)
     test_unlink_without_links_is_refused();
     test_opted_out_and_unlinked_runs();
     test_release_is_safe_when_unlinked();
+    test_get_target_list();
     printf("test_stream_routing: all cases passed\n");
     return 0;
 }
