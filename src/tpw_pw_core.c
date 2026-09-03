@@ -142,6 +142,8 @@ static void tpw_pw_registry_add_node(struct tpw_pw_registry* reg, uint32_t id, c
 {
     const char* name = spa_dict_lookup(props, PW_KEY_NODE_NAME);
     const char* serial = spa_dict_lookup(props, PW_KEY_OBJECT_SERIAL);
+    const char* media_class = spa_dict_lookup(props, PW_KEY_MEDIA_CLASS);
+    const char* description = spa_dict_lookup(props, PW_KEY_NODE_DESCRIPTION);
     if (!name)
         return;
 
@@ -160,6 +162,8 @@ static void tpw_pw_registry_add_node(struct tpw_pw_registry* reg, uint32_t id, c
         return;
     e->id = id;
     e->serial = serial ? strtoull(serial, NULL, 10) : 0;
+    e->media_class = media_class ? strdup(media_class) : NULL;
+    e->description = description ? strdup(description) : NULL;
     reg->n_nodes++;
 }
 
@@ -221,6 +225,8 @@ static void tpw_pw_registry_on_global_remove(void* data, uint32_t id)
         if (reg->nodes[i].id != id)
             continue;
         free(reg->nodes[i].name);
+        free(reg->nodes[i].media_class);
+        free(reg->nodes[i].description);
         reg->nodes[i] = reg->nodes[--reg->n_nodes];
         was_node = true;
         break;
@@ -316,8 +322,11 @@ void tpw_pw_registry_teardown(struct tpw_pw_registry* reg)
         reg->registry = NULL;
     }
 
-    for (size_t i = 0; i < reg->n_nodes; i++)
+    for (size_t i = 0; i < reg->n_nodes; i++) {
         free(reg->nodes[i].name);
+        free(reg->nodes[i].media_class);
+        free(reg->nodes[i].description);
+    }
     free(reg->nodes);
     reg->nodes = NULL;
     reg->n_nodes = reg->nodes_capacity = 0;

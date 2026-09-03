@@ -26,6 +26,8 @@ struct tpw_pw_node_entry {
     uint32_t id;
     char* name;
     uint64_t serial;
+    char* media_class;  /* e.g. "Audio/Source"; NULL if the global never had one */
+    char* description;  /* human-readable node.description; NULL if never set */
 };
 
 /* One PipeWire port global seen through the registry. */
