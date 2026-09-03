@@ -51,6 +51,22 @@ name or serial instead (see `wpctl status` or `pw-cli ls Node`).
 Call it before `tpw_stream_set_audio_config()`/`tpw_stream_set_video_config()`,
 which is what actually connects the stream.
 
+`tpw_stream_get_target_list(stream, out, out_len)` finds those names for
+you, so an application does not have to shell out to `wpctl`/`pw-cli`:
+
+```c
+tpw_target_info targets[16];
+size_t n = tpw_stream_get_target_list(stream, targets, 16);
+for (size_t i = 0; i < n && i < 16; i++)
+    printf("%s (serial %s) - %s\n", targets[i].name, targets[i].serial, targets[i].description);
+```
+
+It lists sources for a capture stream and sinks for a playback stream,
+matching `stream`'s own type/direction — the same set `tpw_stream_set_target()`
+would accept. Works as soon as the stream is created, before a format is
+set. Following the count-then-fill shape `tpw_stream_get_dmabuf_planes()`
+uses: the return value is the true count, which may exceed `out_len`.
+
 ### The capture buffer
 
 `tpw_stream_data_cb` receives a `const tpw_stream_buffer*` rather than
