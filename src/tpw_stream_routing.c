@@ -114,6 +114,44 @@ static uint32_t tpw_stream_resolve_target(struct tpw_stream* stream, const char*
                : tpw_pw_registry_find_node_by_name(&stream->registry, target);
 }
 
+/* The media.class `stream` should list targets for: sinks for playback,
+ * sources for its own audio/video type otherwise. */
+static const char* tpw_stream_target_media_class(const struct tpw_stream* stream)
+{
+    if (stream->direction == TPW_STREAM_DIRECTION_PLAYBACK)
+        return "Audio/Sink";
+    return stream->type == TPW_STREAM_TYPE_VIDEO ? "Video/Source" : "Audio/Source";
+}
+
+size_t tpw_stream_get_target_list(tpw_stream_h handle, tpw_target_info* out, size_t out_len)
+{
+    struct tpw_stream* stream = (struct tpw_stream*)handle;
+    if (!stream)
+        return 0;
+    if (tpw_pw_registry_bind(&stream->registry, &stream->conn) < 0)
+        return 0;
+
+    const char* media_class = tpw_stream_target_media_class(stream);
+
+    pw_thread_loop_lock(stream->conn.loop);
+    size_t found = 0;
+    for (size_t i = 0; i < stream->registry.n_nodes; i++) {
+        const struct tpw_pw_node_entry* e = &stream->registry.nodes[i];
+        if (!e->media_class || strcmp(e->media_class, media_class) != 0)
+            continue;
+        if (out && found < out_len) {
+            snprintf(out[found].name, sizeof(out[found].name), "%s", e->name);
+            snprintf(out[found].description, sizeof(out[found].description), "%s",
+                      e->description ? e->description : "");
+            snprintf(out[found].serial, sizeof(out[found].serial), "%llu", (unsigned long long)e->serial);
+        }
+        found++;
+    }
+    pw_thread_loop_unlock(stream->conn.loop);
+
+    return found;
+}
+
 /* --- link lifecycle --------------------------------------------------- */
 
 static void tpw_stream_link_on_info(void* data, const struct pw_link_info* info)

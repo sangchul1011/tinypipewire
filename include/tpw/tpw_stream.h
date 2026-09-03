@@ -159,6 +159,33 @@ int tpw_stream_set_error_cb(tpw_stream_h stream, tpw_stream_error_cb callback);
 int tpw_stream_set_target(tpw_stream_h stream, const char* target);
 
 /**
+ * @brief One target tpw_stream_set_target()/tpw_stream_link() would
+ *        accept, discovered from the running graph.
+ */
+typedef struct {
+    char name[256];        /**< Node name, usable directly as a target string. */
+    char serial[32];       /**< The node's object.serial as decimal digits, also usable directly as a target string — an alternative to `name` when two nodes share one. */
+    char description[256]; /**< Human-readable node.description (what wpctl status shows), or "" if the node never set one. */
+} tpw_target_info;
+
+/**
+ * @brief Lists targets tpw_stream_set_target()/tpw_stream_link() would
+ *        accept for `stream`'s own media type and direction.
+ *
+ * A capture stream lists sources, a playback stream lists sinks — the
+ * same distinction `wpctl status`/`pw-cli ls Node` show as a node's
+ * media.class. Requires a live PipeWire connection; a freshly created
+ * stream binds the registry and waits for the graph's initial burst of
+ * globals on its first call.
+ *
+ * @param[in]  stream  Selects which targets qualify, by its own type/direction.
+ * @param[out] out     Filled with up to `out_len` targets.
+ * @param[in]  out_len Capacity of `out`.
+ * @return The target count actually available, which may exceed `out_len` if it was too small; 0 for a NULL `stream` or a failed connection, and `out` is left unwritten.
+ */
+size_t tpw_stream_get_target_list(tpw_stream_h stream, tpw_target_info* out, size_t out_len);
+
+/**
  * @brief Turns automatic connection off, so the application wires the
  *        stream itself with tpw_stream_link().
  *
