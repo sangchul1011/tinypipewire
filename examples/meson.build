@@ -25,6 +25,10 @@ executable('stream_manual_link', 'stream_manual_link.c',
   dependencies: [tinypipewire_dep],
 )
 
+executable('list_targets', 'list_targets.c',
+  dependencies: [tinypipewire_dep],
+)
+
 executable('filter_mix', 'filter_mix.c',
   dependencies: [tinypipewire_dep],
 )

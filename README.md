@@ -126,6 +126,7 @@ Each builds to `./build/examples/`:
 | [`video_capture_mjpeg`](examples/video_capture_mjpeg.c) | Capture MJPEG from the default camera and print each frame's (varying) size |
 | [`audio_playback`](examples/audio_playback.c) | Play a generated tone to the default output device, printing when the next samples will be heard. Takes an optional sink name from `wpctl status` |
 | [`stream_manual_link`](examples/stream_manual_link.c) | Wire a capture stream to a named device with no session manager involved, pausing so the graph can be inspected before and after. Usage: `stream_manual_link <device> [other-device]`, where the second device re-targets the stream |
+| [`list_targets`](examples/list_targets.c) | Print every target `tpw_stream_set_target()` would accept, for audio sources, video sources, and audio sinks |
 | [`filter_mix`](examples/filter_mix.c) | Mix two audio input ports into one audio output port |
 | [`filter_signal_port`](examples/filter_signal_port.c) | Feed a synthetic signal port alongside an audio port into one filter |
 | [`filter_event_port`](examples/filter_event_port.c) | Echo events from an event input port back out through an event output port |
