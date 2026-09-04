@@ -1,8 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 
-/* Wires a camera and a microphone straight into a filter with
- * tpw_filter_port_link(), needing no pw-link call. The camera goes to a
- * DMABUF video port and the microphone to a signal port. */
+/* Wires a camera (DMABUF video port) and a microphone (signal port) straight
+ * into a filter, taking the video format from the camera rather than a guess. */
 
 #include <signal.h>
 #include <stdio.h>
@@ -86,7 +85,24 @@ int main(int argc, char** argv)
     }
     tpw_filter_set_error_cb(filter, on_error);
 
+    /* Ask before fixing the port's format: a filter port has no converter, so
+     * a size this camera lacks would only surface at link time, too late. */
     tpw_video_config video_cfg = { .width = 640, .height = 480, .pixel_format = "YUYV", .fps = 30 };
+    tpw_video_format_info fmts[32];
+    size_t n_fmts = tpw_filter_get_target_video_formats(filter, video_target, fmts, 32);
+    if (n_fmts > 0) {
+        const tpw_video_format_info* pick = &fmts[0];
+        video_cfg.width = pick->width;
+        video_cfg.height = pick->height;
+        video_cfg.pixel_format = pick->pixel_format;
+        video_cfg.fps = pick->n_fps > 0 ? pick->fps[0] : 0;
+        printf("using %s %dx%d@%d, the first of %zu format(s) '%s' offers\n", video_cfg.pixel_format,
+               video_cfg.width, video_cfg.height, video_cfg.fps, n_fmts, video_target);
+    } else {
+        printf("'%s' reported no formats; trying %s %dx%d@%d anyway\n", video_target,
+               video_cfg.pixel_format, video_cfg.width, video_cfg.height, video_cfg.fps);
+    }
+
     tpw_filter_port_opts dmabuf_opts = { .memory = TPW_PORT_MEMORY_DMABUF };
     tpw_filter_port_h video_in =
         tpw_filter_add_video_port_ex(filter, TPW_FILTER_PORT_INPUT, &video_cfg, &dmabuf_opts);
