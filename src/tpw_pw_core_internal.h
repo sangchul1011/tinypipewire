@@ -115,8 +115,9 @@ void tpw_video_insert_framerate(tpw_video_format_info* info, int fps);
 
 /* Collects the video formats of node `node_id` into `out`, count-then-fill.
  * `reg` must be bound; blocks on a round-trip, so hold no thread loop. */
-size_t tpw_pw_enum_video_formats(struct tpw_pw_core_conn* conn, struct tpw_pw_registry* reg,
-                                  uint32_t node_id, tpw_video_format_info* out, size_t out_len);
+int tpw_pw_enum_video_formats(struct tpw_pw_core_conn* conn, struct tpw_pw_registry* reg,
+                               uint32_t node_id, tpw_video_format_info* out, size_t out_len,
+                               size_t* found);
 
 /* Increments the process-wide pw_init() refcount, calling pw_init() on
  * the first call. Must be paired with tpw_pw_global_deinit(). */

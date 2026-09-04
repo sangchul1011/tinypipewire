@@ -179,11 +179,13 @@ typedef struct {
  * globals on its first call.
  *
  * @param[in]  stream  Selects which targets qualify, by its own type/direction.
- * @param[out] out     Filled with up to `out_len` targets.
+ * @param[out] out     Filled with up to `out_len` targets, or NULL to only count them.
  * @param[in]  out_len Capacity of `out`.
- * @return The target count actually available, which may exceed `out_len` if it was too small; 0 for a NULL `stream` or a failed connection, and `out` is left unwritten.
+ * @param[out] found   The target count actually available, which may exceed `out_len` if it was too small; 0 on failure. A graph with no such node is TPW_STREAM_OK with 0, not an error.
+ * @return TPW_STREAM_OK, TPW_STREAM_ERR_INVALID_ARG for a NULL `stream` or `found`, or TPW_STREAM_ERR_CONNECT_FAILED when the registry cannot be reached.
  */
-size_t tpw_stream_get_target_list(tpw_stream_h stream, tpw_target_info* out, size_t out_len);
+int tpw_stream_get_target_list(tpw_stream_h stream, tpw_target_info* out, size_t out_len,
+                                size_t* found);
 
 /**
  * @brief One pixel format and frame size a target can deliver.
@@ -214,12 +216,14 @@ typedef struct {
  *
  * @param[in]  stream  A video capture stream, which supplies the connection.
  * @param[in]  target  A node name or object.serial, or NULL for the target already set with tpw_stream_set_target().
- * @param[out] out     Filled with up to `out_len` formats.
+ * @param[out] out     Filled with up to `out_len` formats, or NULL to only count them.
  * @param[in]  out_len Capacity of `out`.
- * @return The format count actually available, which may exceed `out_len` if it was too small; 0 for a NULL or non-video stream, an unresolvable target, or a failed query, and `out` is left unwritten.
+ * @param[out] found   The format count actually available, which may exceed `out_len` if it was too small; 0 on failure. A device reporting no format this library can name is TPW_STREAM_OK with 0, not an error.
+ * @return TPW_STREAM_OK, TPW_STREAM_ERR_INVALID_ARG for a NULL or non-video stream, a NULL `found`, no target to read, or a target naming no node, or TPW_STREAM_ERR_CONNECT_FAILED when the query fails or times out.
  */
-size_t tpw_stream_get_target_video_formats(tpw_stream_h stream, const char* target,
-                                            tpw_video_format_info* out, size_t out_len);
+int tpw_stream_get_target_video_formats(tpw_stream_h stream, const char* target,
+                                         tpw_video_format_info* out, size_t out_len,
+                                         size_t* found);
 
 /**
  * @brief Turns automatic connection off, so the application wires the

@@ -132,24 +132,29 @@ static uint32_t tpw_resolve_target(struct tpw_filter* filter, const char* target
     return node_id;
 }
 
-size_t tpw_filter_get_target_video_formats(tpw_filter_h handle, const char* target,
-                                            tpw_video_format_info* out, size_t out_len)
+int tpw_filter_get_target_video_formats(tpw_filter_h handle, const char* target,
+                                         tpw_video_format_info* out, size_t out_len,
+                                         size_t* found)
 {
     struct tpw_filter* filter = (struct tpw_filter*)handle;
+    if (!found)
+        return TPW_STREAM_ERR_INVALID_ARG;
+
+    *found = 0;
     if (!filter || !target)
-        return 0;
+        return TPW_STREAM_ERR_INVALID_ARG;
     if (tpw_pw_registry_bind(&filter->registry, &filter->conn) < 0)
-        return 0;
+        return TPW_STREAM_ERR_CONNECT_FAILED;
 
     /* Formats belong to the node, so a named port only helps find it. */
     const char* port_name = NULL;
     uint32_t node_id = tpw_resolve_target_node(filter, target, &port_name);
     if (!node_id) {
         tpw_log_warning("filter: no node named '%s' to read formats from", target);
-        return 0;
+        return TPW_STREAM_ERR_INVALID_ARG;
     }
 
-    return tpw_pw_enum_video_formats(&filter->conn, &filter->registry, node_id, out, out_len);
+    return tpw_pw_enum_video_formats(&filter->conn, &filter->registry, node_id, out, out_len, found);
 }
 
 /* Finds this port's own global id by the name it was created with. The

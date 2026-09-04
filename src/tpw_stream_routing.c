@@ -123,57 +123,68 @@ static const char* tpw_stream_target_media_class(const struct tpw_stream* stream
     return stream->type == TPW_STREAM_TYPE_VIDEO ? "Video/Source" : "Audio/Source";
 }
 
-size_t tpw_stream_get_target_list(tpw_stream_h handle, tpw_target_info* out, size_t out_len)
+int tpw_stream_get_target_list(tpw_stream_h handle, tpw_target_info* out, size_t out_len,
+                                size_t* found)
 {
     struct tpw_stream* stream = (struct tpw_stream*)handle;
+    if (!found)
+        return TPW_STREAM_ERR_INVALID_ARG;
+
+    *found = 0;
     if (!stream)
-        return 0;
+        return TPW_STREAM_ERR_INVALID_ARG;
     if (tpw_pw_registry_bind(&stream->registry, &stream->conn) < 0)
-        return 0;
+        return TPW_STREAM_ERR_CONNECT_FAILED;
 
     const char* media_class = tpw_stream_target_media_class(stream);
 
     pw_thread_loop_lock(stream->conn.loop);
-    size_t found = 0;
+    size_t n = 0;
     for (size_t i = 0; i < stream->registry.n_nodes; i++) {
         const struct tpw_pw_node_entry* e = &stream->registry.nodes[i];
         if (!e->media_class || strcmp(e->media_class, media_class) != 0)
             continue;
-        if (out && found < out_len) {
-            snprintf(out[found].name, sizeof(out[found].name), "%s", e->name);
-            snprintf(out[found].description, sizeof(out[found].description), "%s",
+        if (out && n < out_len) {
+            snprintf(out[n].name, sizeof(out[n].name), "%s", e->name);
+            snprintf(out[n].description, sizeof(out[n].description), "%s",
                       e->description ? e->description : "");
-            snprintf(out[found].serial, sizeof(out[found].serial), "%llu", (unsigned long long)e->serial);
+            snprintf(out[n].serial, sizeof(out[n].serial), "%llu", (unsigned long long)e->serial);
         }
-        found++;
+        n++;
     }
     pw_thread_loop_unlock(stream->conn.loop);
 
-    return found;
+    *found = n;
+    return TPW_STREAM_OK;
 }
 
-size_t tpw_stream_get_target_video_formats(tpw_stream_h handle, const char* target,
-                                            tpw_video_format_info* out, size_t out_len)
+int tpw_stream_get_target_video_formats(tpw_stream_h handle, const char* target,
+                                         tpw_video_format_info* out, size_t out_len,
+                                         size_t* found)
 {
     struct tpw_stream* stream = (struct tpw_stream*)handle;
+    if (!found)
+        return TPW_STREAM_ERR_INVALID_ARG;
+
+    *found = 0;
     if (!stream || stream->type != TPW_STREAM_TYPE_VIDEO)
-        return 0;
+        return TPW_STREAM_ERR_INVALID_ARG;
 
     /* Fall back to the target already set, which is the pairing this call
      * exists for: pick a device, then ask what it can deliver. */
     const char* name = target ? target : stream->target;
     if (!name)
-        return 0;
+        return TPW_STREAM_ERR_INVALID_ARG;
     if (tpw_pw_registry_bind(&stream->registry, &stream->conn) < 0)
-        return 0;
+        return TPW_STREAM_ERR_CONNECT_FAILED;
 
     uint32_t node_id = tpw_stream_resolve_target(stream, name);
     if (!node_id) {
         tpw_log_warning("stream: no node named '%s' to read formats from", name);
-        return 0;
+        return TPW_STREAM_ERR_INVALID_ARG;
     }
 
-    return tpw_pw_enum_video_formats(&stream->conn, &stream->registry, node_id, out, out_len);
+    return tpw_pw_enum_video_formats(&stream->conn, &stream->registry, node_id, out, out_len, found);
 }
 
 /* --- link lifecycle --------------------------------------------------- */
