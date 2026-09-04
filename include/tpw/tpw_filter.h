@@ -153,12 +153,14 @@ tpw_filter_port_h tpw_filter_add_audio_port(tpw_filter_h filter, tpw_filter_port
  *
  * @param[in]  filter  Supplies the connection; need not be started yet.
  * @param[in]  target  A node name, an object.serial, or "node:port"; the port part is accepted and ignored, as formats belong to the node.
- * @param[out] out     Filled with up to `out_len` formats.
+ * @param[out] out     Filled with up to `out_len` formats, or NULL to only count them.
  * @param[in]  out_len Capacity of `out`.
- * @return The format count actually available, which may exceed `out_len` if it was too small; 0 for a NULL filter/target, an unresolvable target, or a failed query, and `out` is left unwritten.
+ * @param[out] found   The format count actually available, which may exceed `out_len` if it was too small; 0 on failure. A device reporting no format this library can name is TPW_STREAM_OK with 0, not an error.
+ * @return TPW_STREAM_OK, TPW_STREAM_ERR_INVALID_ARG for a NULL filter, target or `found`, or a target naming no node, or TPW_STREAM_ERR_CONNECT_FAILED when the query fails or times out.
  */
-size_t tpw_filter_get_target_video_formats(tpw_filter_h filter, const char* target,
-                                            tpw_video_format_info* out, size_t out_len);
+int tpw_filter_get_target_video_formats(tpw_filter_h filter, const char* target,
+                                         tpw_video_format_info* out, size_t out_len,
+                                         size_t* found);
 
 /**
  * @brief Adds one video port (input or output) to `filter`.

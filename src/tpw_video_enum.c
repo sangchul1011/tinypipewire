@@ -183,11 +183,16 @@ static const struct pw_node_events tpw_video_enum_node_events = {
     .param = tpw_video_enum_on_param,
 };
 
-size_t tpw_pw_enum_video_formats(struct tpw_pw_core_conn* conn, struct tpw_pw_registry* reg,
-                                  uint32_t node_id, tpw_video_format_info* out, size_t out_len)
+int tpw_pw_enum_video_formats(struct tpw_pw_core_conn* conn, struct tpw_pw_registry* reg,
+                               uint32_t node_id, tpw_video_format_info* out, size_t out_len,
+                               size_t* found)
 {
+    if (!found)
+        return TPW_STREAM_ERR_INVALID_ARG;
+
+    *found = 0;
     if (!conn || !conn->core || !reg || !reg->registry || node_id == 0)
-        return 0;
+        return TPW_STREAM_ERR_INVALID_ARG;
 
     struct tpw_video_enum_ctx ctx = { .out = out, .out_len = out ? out_len : 0, .found = 0 };
 
@@ -198,7 +203,7 @@ size_t tpw_pw_enum_video_formats(struct tpw_pw_core_conn* conn, struct tpw_pw_re
     if (!node) {
         pw_thread_loop_unlock(conn->loop);
         tpw_log_error("failed to bind node %u to read its formats", node_id);
-        return 0;
+        return TPW_STREAM_ERR_CONNECT_FAILED;
     }
 
     struct spa_hook listener;
@@ -216,7 +221,9 @@ size_t tpw_pw_enum_video_formats(struct tpw_pw_core_conn* conn, struct tpw_pw_re
 
     if (res < 0) {
         tpw_log_error("timed out reading the formats of node %u", node_id);
-        return 0;
+        return TPW_STREAM_ERR_CONNECT_FAILED;
     }
-    return ctx.found;
+
+    *found = ctx.found;
+    return TPW_STREAM_OK;
 }
