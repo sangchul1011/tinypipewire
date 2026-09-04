@@ -67,6 +67,52 @@ would accept. Works as soon as the stream is created, before a format is
 set. Following the count-then-fill shape `tpw_stream_get_dmabuf_planes()`
 uses: the return value is the true count, which may exceed `out_len`.
 
+### What a camera can deliver
+
+A video source only produces the sizes and frame rates it actually has:
+PipeWire does not scale video, so asking a camera for 1920x1080 when it
+tops out at 1280x720 fails to negotiate.
+`tpw_stream_get_target_video_formats(stream, target, out, out_len)` lists
+what a given target has, in a shape meant to be handed straight back:
+
+```c
+tpw_video_format_info fmts[32];
+size_t n = tpw_stream_get_target_video_formats(stream, "my-camera", fmts, 32);
+for (size_t i = 0; i < n && i < 32; i++)
+    printf("%s %dx%d @%d\n", fmts[i].pixel_format, fmts[i].width, fmts[i].height,
+           fmts[i].n_fps ? fmts[i].fps[0] : 0);
+
+tpw_video_config cfg = {
+    .width        = fmts[0].width,
+    .height       = fmts[0].height,
+    .pixel_format = fmts[0].pixel_format,   /* already a name tpw takes */
+    .fps          = fmts[0].n_fps ? fmts[0].fps[0] : 0,
+};
+tpw_stream_set_video_config(stream, &cfg);
+```
+
+Every entry is one `tpw_stream_set_video_config()` accepts, so nothing
+needs checking first. A pixel format the camera offers but this library
+has no name for is left out rather than reported as something that would
+then be rejected. Passing NULL as `target` uses the one
+`tpw_stream_set_target()` already set, which is the usual order: pick a
+device, ask what it has, configure. `fps` is listed highest first, so
+`fps[0]` is the fastest rate at that size.
+
+A device that takes a range of sizes rather than a fixed set reports the
+range's ends — `width_max`/`height_max` exceed `width`/`height` — and
+anything between them works too. For a discrete size the two are equal.
+`n_fps` is what `fps` actually holds, unlike the return value's
+count-then-fill rule, so `for (r = 0; r < f->n_fps; r++)` needs no bound
+of its own. A device offering more rates than fit keeps its fastest.
+
+Two things to know. Reading a device's formats opens it briefly, so this
+is not the free lookup `tpw_stream_get_target_list()` is. And **there is
+no audio equivalent, deliberately**: a stream's audio goes through
+PipeWire's converter, which resamples, remixes channels and changes
+sample formats, so a device's own list would not describe what
+`tpw_stream_set_audio_config()` accepts — whatever you ask for works.
+
 ### The capture buffer
 
 `tpw_stream_data_cb` receives a `const tpw_stream_buffer*` rather than
