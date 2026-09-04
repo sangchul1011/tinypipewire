@@ -8,6 +8,7 @@ tinypipewire_sources = files(
   'tpw_buffer.c',
   'tpw_audio_format.c',
   'tpw_video_format.c',
+  'tpw_video_enum.c',
   'tpw_filter.c',
   'tpw_filter_port.c',
   'tpw_filter_process.c',

@@ -186,6 +186,42 @@ typedef struct {
 size_t tpw_stream_get_target_list(tpw_stream_h stream, tpw_target_info* out, size_t out_len);
 
 /**
+ * @brief One pixel format and frame size a target can deliver.
+ *
+ * Every field goes straight into a tpw_video_config; a pixel format this
+ * library cannot name is left out rather than reported as unusable. A
+ * device taking a range of sizes reports its ends, so `width_max`/
+ * `height_max` exceed `width`/`height` there and equal them otherwise.
+ */
+typedef struct {
+    char   pixel_format[16]; /**< "RGB", "YUYV", "NV12", "NV21", "I420", or "MJPG", as tpw_video_config takes it. */
+    int    width;            /**< Frame width in pixels, or the smallest one for a size range. */
+    int    height;           /**< Frame height in pixels, or the smallest one for a size range. */
+    int    width_max;        /**< Equal to `width` for a discrete size, the range's largest width otherwise. */
+    int    height_max;       /**< Equal to `height` for a discrete size, the range's largest height otherwise. */
+    int    fps[8];           /**< Frame rates at this size, highest first; whole frames per second, as tpw_video_config takes them. */
+    size_t n_fps;            /**< Entries set in `fps`, never more than it holds; a device offering more keeps its fastest rates. */
+} tpw_video_format_info;
+
+/**
+ * @brief Lists the video formats `target` can deliver to `stream`.
+ *
+ * Call it between tpw_stream_set_target() and
+ * tpw_stream_set_video_config(). Every entry is one that setter accepts
+ * for that target, so passing one on cannot fail for want of support.
+ * Reading a device's formats opens it briefly, unlike the free lookup
+ * tpw_stream_get_target_list() does.
+ *
+ * @param[in]  stream  A video capture stream, which supplies the connection.
+ * @param[in]  target  A node name or object.serial, or NULL for the target already set with tpw_stream_set_target().
+ * @param[out] out     Filled with up to `out_len` formats.
+ * @param[in]  out_len Capacity of `out`.
+ * @return The format count actually available, which may exceed `out_len` if it was too small; 0 for a NULL or non-video stream, an unresolvable target, or a failed query, and `out` is left unwritten.
+ */
+size_t tpw_stream_get_target_video_formats(tpw_stream_h stream, const char* target,
+                                            tpw_video_format_info* out, size_t out_len);
+
+/**
  * @brief Turns automatic connection off, so the application wires the
  *        stream itself with tpw_stream_link().
  *

@@ -152,6 +152,30 @@ size_t tpw_stream_get_target_list(tpw_stream_h handle, tpw_target_info* out, siz
     return found;
 }
 
+size_t tpw_stream_get_target_video_formats(tpw_stream_h handle, const char* target,
+                                            tpw_video_format_info* out, size_t out_len)
+{
+    struct tpw_stream* stream = (struct tpw_stream*)handle;
+    if (!stream || stream->type != TPW_STREAM_TYPE_VIDEO)
+        return 0;
+
+    /* Fall back to the target already set, which is the pairing this call
+     * exists for: pick a device, then ask what it can deliver. */
+    const char* name = target ? target : stream->target;
+    if (!name)
+        return 0;
+    if (tpw_pw_registry_bind(&stream->registry, &stream->conn) < 0)
+        return 0;
+
+    uint32_t node_id = tpw_stream_resolve_target(stream, name);
+    if (!node_id) {
+        tpw_log_warning("stream: no node named '%s' to read formats from", name);
+        return 0;
+    }
+
+    return tpw_pw_enum_video_formats(&stream->conn, &stream->registry, node_id, out, out_len);
+}
+
 /* --- link lifecycle --------------------------------------------------- */
 
 static void tpw_stream_link_on_info(void* data, const struct pw_link_info* info)

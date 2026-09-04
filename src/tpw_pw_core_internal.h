@@ -7,6 +7,8 @@
 
 #include <pipewire/pipewire.h>
 
+#include "tpw/tpw_stream.h"
+
 /* Shared PipeWire thread-loop/context/core connection, reused by both
  * tpw_stream and tpw_filter so each owns a fully independent PipeWire
  * client without duplicating the setup/teardown logic. */
@@ -75,6 +77,10 @@ struct tpw_pw_registry {
  * success, a negative error code otherwise. */
 int tpw_pw_registry_bind(struct tpw_pw_registry* reg, struct tpw_pw_core_conn* conn);
 
+/* Waits for one core round-trip, so every event owed before the request has
+ * arrived. Caller must hold the thread loop. 0 on success, negative on error. */
+int tpw_pw_core_sync_locked(struct tpw_pw_core_conn* conn);
+
 /* Waits for one core round-trip so any globals created since the last
  * call have been delivered. Use when an object is expected to appear
  * shortly (objects show up asynchronously after the call that creates
@@ -102,6 +108,15 @@ uint32_t tpw_pw_registry_find_port(const struct tpw_pw_registry* reg, uint32_t n
 size_t tpw_pw_registry_list_ports(const struct tpw_pw_registry* reg, uint32_t node_id,
                                    enum spa_direction direction, const struct tpw_pw_port_entry** out,
                                    size_t max);
+
+/* Inserts `fps` descending, dropping repeats and, once `fps` is full, any rate
+ * slower than all of them. Exposed so a test can cover it without a device. */
+void tpw_video_insert_framerate(tpw_video_format_info* info, int fps);
+
+/* Collects the video formats of node `node_id` into `out`, count-then-fill.
+ * `reg` must be bound; blocks on a round-trip, so hold no thread loop. */
+size_t tpw_pw_enum_video_formats(struct tpw_pw_core_conn* conn, struct tpw_pw_registry* reg,
+                                  uint32_t node_id, tpw_video_format_info* out, size_t out_len);
 
 /* Increments the process-wide pw_init() refcount, calling pw_init() on
  * the first call. Must be paired with tpw_pw_global_deinit(). */
