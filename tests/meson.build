@@ -21,6 +21,7 @@ unit_tests = [
   'test_stream_playback',
   'test_stream_routing',
   'test_stream_dmabuf',
+  'test_video_enum',
 ]
 
 # test_error_notification.c is a whitebox test: it reaches into
@@ -46,6 +47,7 @@ hardware_tests = [
   'test_stream_routing_hw',
   'test_stream_dmabuf_hw',
   'test_stream_capture_hw',
+  'test_video_enum_hw',
 ]
 
 foreach name : hardware_tests
