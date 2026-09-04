@@ -142,6 +142,25 @@ tpw_filter_port_h tpw_filter_add_audio_port(tpw_filter_h filter, tpw_filter_port
                                              const tpw_audio_config* config);
 
 /**
+ * @brief Lists the video formats `target` can deliver to a port on `filter`.
+ *
+ * Call it before tpw_filter_add_video_port(), which fixes a port's format
+ * for good. A filter port carries no converter, unlike a tpw_stream, so a
+ * format the target lacks only surfaces as TPW_STREAM_ERR_INVALID_FORMAT
+ * from tpw_filter_port_link(). Every entry here is one
+ * tpw_filter_add_video_port() accepts. Pass tpw_filter_port_link() the
+ * same `target` string; reading formats opens the device briefly.
+ *
+ * @param[in]  filter  Supplies the connection; need not be started yet.
+ * @param[in]  target  A node name, an object.serial, or "node:port"; the port part is accepted and ignored, as formats belong to the node.
+ * @param[out] out     Filled with up to `out_len` formats.
+ * @param[in]  out_len Capacity of `out`.
+ * @return The format count actually available, which may exceed `out_len` if it was too small; 0 for a NULL filter/target, an unresolvable target, or a failed query, and `out` is left unwritten.
+ */
+size_t tpw_filter_get_target_video_formats(tpw_filter_h filter, const char* target,
+                                            tpw_video_format_info* out, size_t out_len);
+
+/**
  * @brief Adds one video port (input or output) to `filter`.
  *
  * Same timing and failure behavior as tpw_filter_add_audio_port().

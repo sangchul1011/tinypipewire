@@ -251,7 +251,7 @@ static const struct pw_registry_events tpw_pw_registry_events = {
 
 /* Waits for one core round-trip, so every global the server has announced
  * so far has been delivered. The thread loop must already be locked. */
-static int tpw_pw_core_sync_locked(struct tpw_pw_core_conn* conn)
+int tpw_pw_core_sync_locked(struct tpw_pw_core_conn* conn)
 {
     pw_core_add_listener(conn->core, &conn->core_listener, &tpw_pw_core_events, conn);
     conn->pending_seq = pw_core_sync(conn->core, PW_ID_CORE, 0);

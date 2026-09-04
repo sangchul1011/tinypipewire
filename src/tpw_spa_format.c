@@ -62,7 +62,7 @@ enum spa_video_format tpw_spa_lookup_pixel_format(const char* name)
     return SPA_VIDEO_FORMAT_UNKNOWN;
 }
 
-const char* tpw_spa_pixel_format_name(enum spa_video_format format)
+const char* tpw_spa_pixel_format_name_or_null(enum spa_video_format format)
 {
     /* MJPEG is the only encoded format this library builds. */
     if (format == SPA_VIDEO_FORMAT_ENCODED)
@@ -71,7 +71,13 @@ const char* tpw_spa_pixel_format_name(enum spa_video_format format)
         if (tpw_pixel_formats[i].format == format)
             return tpw_pixel_formats[i].name;
     }
-    return "unknown";
+    return NULL;
+}
+
+const char* tpw_spa_pixel_format_name(enum spa_video_format format)
+{
+    const char* name = tpw_spa_pixel_format_name_or_null(format);
+    return name ? name : "unknown";
 }
 
 const struct spa_pod* tpw_spa_build_video_format(struct spa_pod_builder* b, const tpw_video_config* config,

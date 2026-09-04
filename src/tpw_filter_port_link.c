@@ -70,22 +70,21 @@ static uint32_t tpw_pick_target_port(struct tpw_filter* filter, uint32_t node_id
     return 0;
 }
 
-/* Resolves `target` to a node id, and to the output port id to link, whether
- * the target names one explicitly or not. Returns 0 when nothing matches. */
-static uint32_t tpw_resolve_target(struct tpw_filter* filter, const char* target, uint32_t* out_port_id)
+/* Resolves `target` to a node id alone, setting `*out_port_name` to the port
+ * part or NULL; split out so a format query costs no port lookup. 0 if none. */
+static uint32_t tpw_resolve_target_node(struct tpw_filter* filter, const char* target,
+                                         const char** out_port_name)
 {
     struct tpw_pw_registry* reg = &filter->registry;
-    *out_port_id = 0;
+    *out_port_name = NULL;
 
     /* Try the whole string first, so a node whose name contains ':'
      * still resolves before we treat ':' as a separator. */
     uint32_t node_id = tpw_str_is_all_digits(target)
                            ? tpw_pw_registry_find_node_by_serial(reg, strtoull(target, NULL, 10))
                            : tpw_pw_registry_find_node_by_name(reg, target);
-    if (node_id) {
-        *out_port_id = tpw_pick_target_port(filter, node_id);
+    if (node_id)
         return node_id;
-    }
 
     const char* sep = strrchr(target, ':');
     if (!sep || sep == target || !sep[1])
@@ -104,12 +103,53 @@ static uint32_t tpw_resolve_target(struct tpw_filter* filter, const char* target
     if (!node_id)
         return 0;
 
-    uint32_t port_id = tpw_pw_registry_find_port(reg, node_id, sep + 1, SPA_DIRECTION_OUTPUT);
+    *out_port_name = sep + 1;
+    return node_id;
+}
+
+/* Resolves `target` to a node id, and to the output port id to link, whether
+ * the target names one explicitly or not. Returns 0 when nothing matches. */
+static uint32_t tpw_resolve_target(struct tpw_filter* filter, const char* target, uint32_t* out_port_id)
+{
+    const char* port_name = NULL;
+    *out_port_id = 0;
+
+    uint32_t node_id = tpw_resolve_target_node(filter, target, &port_name);
+    if (!node_id)
+        return 0;
+
+    if (!port_name) {
+        *out_port_id = tpw_pick_target_port(filter, node_id);
+        return node_id;
+    }
+
+    uint32_t port_id =
+        tpw_pw_registry_find_port(&filter->registry, node_id, port_name, SPA_DIRECTION_OUTPUT);
     if (!port_id)
         return 0;
 
     *out_port_id = port_id;
     return node_id;
+}
+
+size_t tpw_filter_get_target_video_formats(tpw_filter_h handle, const char* target,
+                                            tpw_video_format_info* out, size_t out_len)
+{
+    struct tpw_filter* filter = (struct tpw_filter*)handle;
+    if (!filter || !target)
+        return 0;
+    if (tpw_pw_registry_bind(&filter->registry, &filter->conn) < 0)
+        return 0;
+
+    /* Formats belong to the node, so a named port only helps find it. */
+    const char* port_name = NULL;
+    uint32_t node_id = tpw_resolve_target_node(filter, target, &port_name);
+    if (!node_id) {
+        tpw_log_warning("filter: no node named '%s' to read formats from", target);
+        return 0;
+    }
+
+    return tpw_pw_enum_video_formats(&filter->conn, &filter->registry, node_id, out, out_len);
 }
 
 /* Finds this port's own global id by the name it was created with. The

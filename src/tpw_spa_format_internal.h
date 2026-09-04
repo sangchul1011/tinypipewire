@@ -27,6 +27,10 @@ enum spa_video_format tpw_spa_lookup_pixel_format(const char* name);
  * tpw_spa_lookup_pixel_format(); "unknown" if unrecognized. */
 const char* tpw_spa_pixel_format_name(enum spa_video_format format);
 
+/* Like tpw_spa_pixel_format_name(), but NULL rather than "unknown", so a
+ * caller enumerating a device can skip what it could not ask for anyway. */
+const char* tpw_spa_pixel_format_name_or_null(enum spa_video_format format);
+
 /* Builds the raw-video SPA_TYPE_OBJECT_Format POD for `config`/`fmt`
  * using `b`. Shared by tpw_stream's and tpw_filter's video format
  * setters. Does not validate `config`. */
