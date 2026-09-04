@@ -51,12 +51,14 @@ name or serial instead (see `wpctl status` or `pw-cli ls Node`).
 Call it before `tpw_stream_set_audio_config()`/`tpw_stream_set_video_config()`,
 which is what actually connects the stream.
 
-`tpw_stream_get_target_list(stream, out, out_len)` finds those names for
-you, so an application does not have to shell out to `wpctl`/`pw-cli`:
+`tpw_stream_get_target_list(stream, out, out_len, found)` finds those names
+for you, so an application does not have to shell out to `wpctl`/`pw-cli`:
 
 ```c
 tpw_target_info targets[16];
-size_t n = tpw_stream_get_target_list(stream, targets, 16);
+size_t n = 0;
+if (tpw_stream_get_target_list(stream, targets, 16, &n) != TPW_STREAM_OK)
+    return; /* the graph could not be reached — distinct from finding nothing */
 for (size_t i = 0; i < n && i < 16; i++)
     printf("%s (serial %s) - %s\n", targets[i].name, targets[i].serial, targets[i].description);
 ```
@@ -64,20 +66,30 @@ for (size_t i = 0; i < n && i < 16; i++)
 It lists sources for a capture stream and sinks for a playback stream,
 matching `stream`'s own type/direction — the same set `tpw_stream_set_target()`
 would accept. Works as soon as the stream is created, before a format is
-set. Following the count-then-fill shape `tpw_stream_get_dmabuf_planes()`
-uses: the return value is the true count, which may exceed `out_len`.
+set. Following a count-then-fill shape: `*found` is the true count, which
+may exceed `out_len`, and a NULL `out` asks for the count alone.
+
+The count comes back through a parameter rather than the return value
+because this call talks to the server, so it can fail for reasons that have
+nothing to do with how many targets exist. An empty graph is
+`TPW_STREAM_OK` with `*found` 0; an unreachable one is an error. Queries
+that only read buffers already delivered — `tpw_stream_get_dmabuf_planes()`
+and the filter's event and DMABUF readers — cannot fail that way, and keep
+returning their count directly.
 
 ### What a camera can deliver
 
 A video source only produces the sizes and frame rates it actually has:
 PipeWire does not scale video, so asking a camera for 1920x1080 when it
 tops out at 1280x720 fails to negotiate.
-`tpw_stream_get_target_video_formats(stream, target, out, out_len)` lists
+`tpw_stream_get_target_video_formats(stream, target, out, out_len, found)` lists
 what a given target has, in a shape meant to be handed straight back:
 
 ```c
 tpw_video_format_info fmts[32];
-size_t n = tpw_stream_get_target_video_formats(stream, "my-camera", fmts, 32);
+size_t n = 0;
+if (tpw_stream_get_target_video_formats(stream, "my-camera", fmts, 32, &n) != TPW_STREAM_OK)
+    return; /* no such node, or the query timed out */
 for (size_t i = 0; i < n && i < 32; i++)
     printf("%s %dx%d @%d\n", fmts[i].pixel_format, fmts[i].width, fmts[i].height,
            fmts[i].n_fps ? fmts[i].fps[0] : 0);

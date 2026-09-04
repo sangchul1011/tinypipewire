@@ -215,7 +215,9 @@ before the port exists:
 tpw_filter_h filter = tpw_filter_create("my-filter", on_process, NULL);
 
 tpw_video_format_info fmts[32];
-size_t n = tpw_filter_get_target_video_formats(filter, target, fmts, 32);
+size_t n = 0;
+if (tpw_filter_get_target_video_formats(filter, target, fmts, 32, &n) != TPW_STREAM_OK || n == 0)
+    return; /* an error means the query failed; 0 means the device named nothing usable */
 
 tpw_video_config cfg = {
     .width        = fmts[0].width,
