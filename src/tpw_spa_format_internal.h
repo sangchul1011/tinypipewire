@@ -41,9 +41,16 @@ const struct spa_pod* tpw_spa_build_video_format(struct spa_pod_builder* b, cons
  * cannot go through tpw_spa_lookup_pixel_format(). */
 bool tpw_spa_pixel_format_is_mjpg(const char* name);
 
+/* True if `name` selects H.264 encoded format. */
+bool tpw_spa_pixel_format_is_h264(const char* name);
+
 /* Builds the MJPEG SPA_TYPE_OBJECT_Format POD for `config` using `b`.
  * Shared by tpw_stream's and tpw_filter's video format setters. */
 const struct spa_pod* tpw_spa_build_video_format_mjpg(struct spa_pod_builder* b, const tpw_video_config* config);
+
+/* Builds the H.264 SPA_TYPE_OBJECT_Format POD for `config` using `b`.
+ * Shared by tpw_stream's and tpw_filter's video format setters. */
+const struct spa_pod* tpw_spa_build_video_format_h264(struct spa_pod_builder* b, const tpw_video_config* config);
 
 /* Builds the SPA_TYPE_OBJECT_Format POD for a filter signal port using
  * `b`: audio/dsp media type fixed to 32-bit float, no per-instance

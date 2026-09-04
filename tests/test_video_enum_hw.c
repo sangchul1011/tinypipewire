@@ -20,7 +20,7 @@
  * reach a caller, since nothing else could be passed back. */
 static bool is_known_pixel_format(const char* name)
 {
-    static const char* known[] = { "RGB", "YUYV", "NV12", "NV21", "I420", "MJPG" };
+    static const char* known[] = { "RGB", "YUYV", "NV12", "NV21", "I420", "MJPG", "H264" };
     for (size_t i = 0; i < sizeof(known) / sizeof(known[0]); i++) {
         if (strcmp(known[i], name) == 0)
             return true;

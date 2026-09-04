@@ -194,7 +194,7 @@ size_t tpw_stream_get_target_list(tpw_stream_h stream, tpw_target_info* out, siz
  * `height_max` exceed `width`/`height` there and equal them otherwise.
  */
 typedef struct {
-    char   pixel_format[16]; /**< "RGB", "YUYV", "NV12", "NV21", "I420", or "MJPG", as tpw_video_config takes it. */
+    char   pixel_format[16]; /**< "RGB", "YUYV", "NV12", "NV21", "I420", "MJPG", or "H264", as tpw_video_config takes it. */
     int    width;            /**< Frame width in pixels, or the smallest one for a size range. */
     int    height;           /**< Frame height in pixels, or the smallest one for a size range. */
     int    width_max;        /**< Equal to `width` for a discrete size, the range's largest width otherwise. */
@@ -288,7 +288,7 @@ typedef struct {
 typedef struct {
     int width;                /**< Frame width in pixels. */
     int height;               /**< Frame height in pixels. */
-    const char* pixel_format; /**< "RGB", "YUYV", "NV12", "NV21", "I420", or "MJPG". MJPG is JPEG-compressed: each delivered frame's size varies, and DMABUF delivery is not available for it. */
+    const char* pixel_format; /**< "RGB", "YUYV", "NV12", "NV21", "I420", "MJPG", or "H264". MJPG and H264 are compressed: each delivered frame's size varies, and DMABUF delivery is not available for them. */
     int fps;                  /**< Frames per second; 0 negotiates automatically. */
 } tpw_video_config;
 

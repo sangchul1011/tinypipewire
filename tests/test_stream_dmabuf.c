@@ -161,12 +161,18 @@ int main(void)
     TPW_ASSERT_EQ(tpw_stream_set_video_config_ex(playback, &cfg, &dmabuf_opts), TPW_STREAM_ERR_INVALID_ARG);
     tpw_stream_destroy(playback);
 
-    /* MJPEG frames are never handed out as DMABUF. */
+    /* MJPEG and H.264 frames are never handed out as DMABUF. */
     tpw_stream_h mjpg = tpw_stream_create(TPW_STREAM_TYPE_VIDEO, noop_data_cb, NULL);
     TPW_ASSERT(mjpg != NULL);
     tpw_video_config mjpg_cfg = { .width = 640, .height = 480, .pixel_format = "MJPG", .fps = 30 };
     TPW_ASSERT_EQ(tpw_stream_set_video_config_ex(mjpg, &mjpg_cfg, &dmabuf_opts), TPW_STREAM_ERR_INVALID_ARG);
     tpw_stream_destroy(mjpg);
+
+    tpw_stream_h h264 = tpw_stream_create(TPW_STREAM_TYPE_VIDEO, noop_data_cb, NULL);
+    TPW_ASSERT(h264 != NULL);
+    tpw_video_config h264_cfg = { .width = 640, .height = 480, .pixel_format = "H264", .fps = 30 };
+    TPW_ASSERT_EQ(tpw_stream_set_video_config_ex(h264, &h264_cfg, &dmabuf_opts), TPW_STREAM_ERR_INVALID_ARG);
+    tpw_stream_destroy(h264);
 
     return 0;
 }

@@ -54,6 +54,8 @@ static const char* tpw_video_parse_pixel_format(const struct spa_pod* param)
         return NULL;
     if (media_subtype == SPA_MEDIA_SUBTYPE_mjpg)
         return "MJPG";
+    if (media_subtype == SPA_MEDIA_SUBTYPE_h264)
+        return "H264";
     if (media_subtype != SPA_MEDIA_SUBTYPE_raw)
         return NULL;
 

@@ -31,7 +31,7 @@ int main(void)
     tpw_stream_destroy(stream);
 
     /* Every supported pixel format is recognized. */
-    static const char* supported_formats[] = { "RGB", "YUYV", "NV12", "NV21", "I420", "MJPG" };
+    static const char* supported_formats[] = { "RGB", "YUYV", "NV12", "NV21", "I420", "MJPG", "H264" };
     for (size_t i = 0; i < sizeof(supported_formats) / sizeof(supported_formats[0]); i++) {
         tpw_stream_h s = tpw_stream_create(TPW_STREAM_TYPE_VIDEO, noop_data_cb, NULL);
         TPW_ASSERT(s != NULL);
