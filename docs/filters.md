@@ -197,6 +197,48 @@ int tpw_filter_port_unlink(tpw_filter_port_h port);
 Remember that an audio device links to a **signal** port, not an audio
 port — see [the note above](#driving-the-bundle-with-a-real-audio-device).
 
+### Matching a camera's format before adding the port
+
+`TPW_STREAM_ERR_INVALID_FORMAT` above is the failure worth designing
+around, because by the time it appears the port can no longer be changed:
+`tpw_filter_add_video_port()` fixes a port's format and must run *before*
+`tpw_filter_start()`, while `tpw_filter_port_link()` runs after it. So the
+format has to be chosen before the target is ever consulted.
+
+Unlike a `tpw_stream`, a filter port has no converter behind it — PipeWire
+wraps a stream's node in an adapter and a filter's node in nothing — so
+the format a port declares must be one the device actually has, exactly.
+`tpw_filter_get_target_video_formats()` closes that gap, and is called
+before the port exists:
+
+```c
+tpw_filter_h filter = tpw_filter_create("my-filter", on_process, NULL);
+
+tpw_video_format_info fmts[32];
+size_t n = tpw_filter_get_target_video_formats(filter, target, fmts, 32);
+
+tpw_video_config cfg = {
+    .width        = fmts[0].width,
+    .height       = fmts[0].height,
+    .pixel_format = fmts[0].pixel_format,
+    .fps          = fmts[0].n_fps ? fmts[0].fps[0] : 0,
+};
+tpw_filter_port_h port = tpw_filter_add_video_port(filter, TPW_FILTER_PORT_INPUT, &cfg);
+
+tpw_filter_start(filter);
+tpw_filter_port_link(port, target);   /* same target string */
+```
+
+Pass `tpw_filter_port_link()` the same `target` string used for the query:
+both resolve it the same way, so a different spelling of one device is
+fine but a different device is not. `"node:port"` is accepted here and the
+port half ignored, since formats belong to the node. The entry shape and
+its guarantees are the same as the stream's — see
+[what a camera can deliver](streams.md#what-a-camera-can-deliver) — as is
+the reason there is no audio counterpart, though for filters the caveat
+cuts the other way: a filter's audio port really does need to match its
+source, since nothing converts for it.
+
 ## See also
 
 - [Streams](streams.md) — single-source capture and audio playback

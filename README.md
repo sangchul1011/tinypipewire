@@ -113,6 +113,10 @@ Some highlights of what lives behind them:
   receive DMABUF file descriptors instead of CPU-mapped frames.
 - **Your own graph.** Streams and filter ports can skip the session manager
   and link themselves to a named device.
+- **Ask before you configure.** A camera reports the sizes and frame rates it
+  actually has, in a form that goes straight into a `tpw_video_config`. Audio
+  has no such call on purpose — PipeWire converts sample formats, rates and
+  channel counts for a stream, so whatever you ask for works.
 
 ## Examples
 
@@ -126,12 +130,12 @@ Each builds to `./build/examples/`:
 | [`video_capture_mjpeg`](examples/video_capture_mjpeg.c) | Capture MJPEG from the default camera and print each frame's (varying) size |
 | [`audio_playback`](examples/audio_playback.c) | Play a generated tone to the default output device, printing when the next samples will be heard. Takes an optional sink name from `wpctl status` |
 | [`stream_manual_link`](examples/stream_manual_link.c) | Wire a capture stream to a named device with no session manager involved, pausing so the graph can be inspected before and after. Usage: `stream_manual_link <device> [other-device]`, where the second device re-targets the stream |
-| [`list_targets`](examples/list_targets.c) | Print every target `tpw_stream_set_target()` would accept, for audio sources, video sources, and audio sinks |
+| [`list_targets`](examples/list_targets.c) | Print every target `tpw_stream_set_target()` would accept, for audio sources, video sources, and audio sinks — with each camera's supported formats and frame rates |
 | [`filter_mix`](examples/filter_mix.c) | Mix two audio input ports into one audio output port |
 | [`filter_signal_port`](examples/filter_signal_port.c) | Feed a synthetic signal port alongside an audio port into one filter |
 | [`filter_event_port`](examples/filter_event_port.c) | Echo events from an event input port back out through an event output port |
 | [`filter_dmabuf_bundle`](examples/filter_dmabuf_bundle.c) | Bundle a DMABUF camera input (with hold) and a faster signal input, printing each frame's fd and freshness |
-| [`filter_port_link`](examples/filter_port_link.c) | Link a camera and a microphone straight into a filter by node name, with no `pw-link` step. Usage: `filter_port_link <video-node> [audio-node]` |
+| [`filter_port_link`](examples/filter_port_link.c) | Link a camera and a microphone straight into a filter by node name, with no `pw-link` step, taking the video port's format from the camera rather than guessing. Usage: `filter_port_link <video-node> [audio-node]` |
 
 Node and device names come from `wpctl status` or `pw-cli ls Node`.
 
