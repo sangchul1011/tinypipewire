@@ -91,9 +91,12 @@ int main(void)
     /* DMABUF is import-only: refused on an OUTPUT port. */
     TPW_ASSERT(tpw_filter_add_video_port_ex(filter, TPW_FILTER_PORT_OUTPUT, &cfg, &dmabuf_opts) == NULL);
 
-    /* MJPEG frames are never handed out as DMABUF, even on an INPUT port. */
+    /* MJPEG and H.264 frames are never handed out as DMABUF, even on an INPUT port. */
     tpw_video_config mjpg_cfg = { .width = 640, .height = 480, .pixel_format = "MJPG", .fps = 30 };
     TPW_ASSERT(tpw_filter_add_video_port_ex(filter, TPW_FILTER_PORT_INPUT, &mjpg_cfg, &dmabuf_opts) == NULL);
+
+    tpw_video_config h264_cfg = { .width = 640, .height = 480, .pixel_format = "H264", .fps = 30 };
+    TPW_ASSERT(tpw_filter_add_video_port_ex(filter, TPW_FILTER_PORT_INPUT, &h264_cfg, &dmabuf_opts) == NULL);
 
     /* opts == NULL is exactly the non-_ex call: a normal CPU video port. */
     tpw_filter_port_h cpu_in = tpw_filter_add_video_port_ex(filter, TPW_FILTER_PORT_INPUT, &cfg, NULL);

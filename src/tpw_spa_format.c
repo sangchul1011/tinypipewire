@@ -112,6 +112,11 @@ bool tpw_spa_pixel_format_is_mjpg(const char* name)
     return strcmp(name, "MJPG") == 0;
 }
 
+bool tpw_spa_pixel_format_is_h264(const char* name)
+{
+    return strcmp(name, "H264") == 0;
+}
+
 const struct spa_pod* tpw_spa_build_video_format_mjpg(struct spa_pod_builder* b, const tpw_video_config* config)
 {
     /* MJPEG has no raw pixel-layout enum, so it gets its own POD shape
@@ -122,6 +127,16 @@ const struct spa_pod* tpw_spa_build_video_format_mjpg(struct spa_pod_builder* b,
     if (config->fps > 0)
         info.framerate = SPA_FRACTION((uint32_t)config->fps, 1);
     return spa_format_video_mjpg_build(b, SPA_PARAM_EnumFormat, &info);
+}
+
+const struct spa_pod* tpw_spa_build_video_format_h264(struct spa_pod_builder* b, const tpw_video_config* config)
+{
+    struct spa_video_info_h264 info = {
+        .size = SPA_RECTANGLE((uint32_t)config->width, (uint32_t)config->height),
+    };
+    if (config->fps > 0)
+        info.framerate = SPA_FRACTION((uint32_t)config->fps, 1);
+    return spa_format_video_h264_build(b, SPA_PARAM_EnumFormat, &info);
 }
 
 const struct spa_pod* tpw_spa_build_signal_format(struct spa_pod_builder* b)

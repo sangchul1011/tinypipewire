@@ -17,13 +17,15 @@ int tpw_stream_set_video_config_ex(tpw_stream_h handle, const tpw_video_config* 
 
     bool use_dmabuf = opts && opts->memory == TPW_PORT_MEMORY_DMABUF;
     bool is_mjpg = tpw_spa_pixel_format_is_mjpg(config->pixel_format);
-    /* MJPEG frames are never handed out as DMABUF; nothing here would
-     * ever negotiate it, so refuse the request instead of guessing. */
-    if (is_mjpg && use_dmabuf)
+    bool is_h264 = tpw_spa_pixel_format_is_h264(config->pixel_format);
+    bool is_encoded = is_mjpg || is_h264;
+    /* Encoded frames (MJPEG, H.264) are never handed out as DMABUF; nothing
+     * here would ever negotiate it, so refuse the request. */
+    if (is_encoded && use_dmabuf)
         return TPW_STREAM_ERR_INVALID_ARG;
 
     enum spa_video_format fmt = SPA_VIDEO_FORMAT_ENCODED;
-    if (!is_mjpg) {
+    if (!is_encoded) {
         fmt = tpw_spa_lookup_pixel_format(config->pixel_format);
         if (fmt == SPA_VIDEO_FORMAT_UNKNOWN)
             return TPW_STREAM_ERR_INVALID_FORMAT;
@@ -32,7 +34,12 @@ int tpw_stream_set_video_config_ex(tpw_stream_h handle, const tpw_video_config* 
     uint8_t buffer[1024];
     struct spa_pod_builder b = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
     const struct spa_pod* params[3];
-    params[0] = is_mjpg ? tpw_spa_build_video_format_mjpg(&b, config) : tpw_spa_build_video_format(&b, config, fmt);
+    if (is_mjpg)
+        params[0] = tpw_spa_build_video_format_mjpg(&b, config);
+    else if (is_h264)
+        params[0] = tpw_spa_build_video_format_h264(&b, config);
+    else
+        params[0] = tpw_spa_build_video_format(&b, config, fmt);
     params[1] = tpw_spa_build_meta_header(&b);
     /* DMABUF's dataType is applied later in param_changed (add-time crashes
      * 1.0.5); restricting it here too would fight that deferred param. */
