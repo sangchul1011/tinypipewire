@@ -241,7 +241,8 @@ int main(void)
         /* The node tpw_test_find_node() found must be in the same stream's
          * own target list — they both read Audio/Source from the graph. */
         tpw_target_info targets[64];
-        size_t n = tpw_stream_get_target_list(s, targets, 64);
+        size_t n = 0;
+        TPW_ASSERT_EQ(tpw_stream_get_target_list(s, targets, 64, &n), TPW_STREAM_OK);
         bool listed = false;
         for (size_t i = 0; i < n && i < 64; i++)
             listed = listed || strcmp(targets[i].name, source) == 0;
