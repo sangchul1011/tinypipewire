@@ -89,8 +89,9 @@ int main(int argc, char** argv)
      * a size this camera lacks would only surface at link time, too late. */
     tpw_video_config video_cfg = { .width = 640, .height = 480, .pixel_format = "YUYV", .fps = 30 };
     tpw_video_format_info fmts[32];
-    size_t n_fmts = tpw_filter_get_target_video_formats(filter, video_target, fmts, 32);
-    if (n_fmts > 0) {
+    size_t n_fmts = 0;
+    int fmt_res = tpw_filter_get_target_video_formats(filter, video_target, fmts, 32, &n_fmts);
+    if (fmt_res == TPW_STREAM_OK && n_fmts > 0) {
         const tpw_video_format_info* pick = &fmts[0];
         video_cfg.width = pick->width;
         video_cfg.height = pick->height;
