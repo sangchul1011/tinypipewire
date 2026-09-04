@@ -182,13 +182,17 @@ static void test_opted_out_and_unlinked_runs(void)
  * is a safe count-only query — no assumption about what devices exist. */
 static void test_get_target_list(void)
 {
-    TPW_ASSERT_EQ(tpw_stream_get_target_list(NULL, NULL, 0), (size_t)0);
+    size_t count = 99;
+    TPW_ASSERT_EQ(tpw_stream_get_target_list(NULL, NULL, 0, &count), TPW_STREAM_ERR_INVALID_ARG);
+    TPW_ASSERT_EQ(count, (size_t)0);
 
     tpw_stream_h s = make_capture();
-    size_t count = tpw_stream_get_target_list(s, NULL, 0);
+    TPW_ASSERT_EQ(tpw_stream_get_target_list(s, NULL, 0, NULL), TPW_STREAM_ERR_INVALID_ARG);
+    TPW_ASSERT_EQ(tpw_stream_get_target_list(s, NULL, 0, &count), TPW_STREAM_OK);
 
     tpw_target_info targets[8];
-    size_t again = tpw_stream_get_target_list(s, targets, 8);
+    size_t again = 0;
+    TPW_ASSERT_EQ(tpw_stream_get_target_list(s, targets, 8, &again), TPW_STREAM_OK);
     TPW_ASSERT_EQ(again, count);
     for (size_t i = 0; i < again && i < 8; i++)
         TPW_ASSERT(targets[i].name[0] != '\0');
