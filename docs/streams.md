@@ -236,6 +236,12 @@ unaffected. The two modes are mutually exclusive: combining
 `tpw_stream_set_target()` with `tpw_stream_set_autoconnect(false)` returns
 `TPW_STREAM_ERR_INVALID_ARG`, whichever you call second.
 
+To move from one mode to the other before the format connects the stream,
+clear the target first: `tpw_stream_set_target(stream, NULL)` is accepted
+whatever the autoconnect setting, and is what leaves `tpw_stream_set_autoconnect()`
+free to go either way. Turning autoconnect back on does not clear a target
+by itself, so a stream that had one keeps being pointed at it.
+
 ### What manual wiring takes on
 
 Choosing manual wiring takes on three things the session manager otherwise
