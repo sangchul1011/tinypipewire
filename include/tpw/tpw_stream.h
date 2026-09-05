@@ -142,19 +142,17 @@ int tpw_stream_set_error_cb(tpw_stream_h stream, tpw_stream_error_cb callback);
  *        connect to, by name or serial (as shown by `wpctl status` or
  *        `pw-cli ls Node`).
  *
- * Must be called before tpw_stream_set_audio_config()/
+ * Call it before tpw_stream_set_audio_config()/
  * tpw_stream_set_video_config(), which is what actually connects the
- * stream. If never called, the stream auto-connects to PipeWire's default
- * source for its media type.
- *
- * This is a hint to the session manager, which does the wiring, so it is
- * meaningful only while autoconnect is on. Mutually exclusive with
- * tpw_stream_set_autoconnect(false): whichever of the two is called second
- * returns TPW_STREAM_ERR_INVALID_ARG.
+ * stream; a target set after that is kept but never read. If never
+ * called, the stream auto-connects to PipeWire's default source for its
+ * media type. This is a hint to the session manager, which does the
+ * wiring, so it means nothing while autoconnect is off: naming a target
+ * then is refused, though clearing with NULL is always accepted.
  *
  * @param stream The stream to target, before its format is set.
  * @param target A node name or object.serial, or NULL to clear a previously set target.
- * @return TPW_STREAM_OK, or TPW_STREAM_ERR_INVALID_ARG (NULL stream, format already set, or autoconnect already turned off).
+ * @return TPW_STREAM_OK, or TPW_STREAM_ERR_INVALID_ARG for a NULL `stream`, or for a non-NULL `target` while autoconnect is off.
  */
 int tpw_stream_set_target(tpw_stream_h stream, const char* target);
 
@@ -231,12 +229,14 @@ int tpw_stream_get_target_video_formats(tpw_stream_h stream, const char* target,
  *
  * On by default, which is what every existing caller already gets. Must
  * be called before the format is set; the routing mode is fixed once the
- * stream connects. Mutually exclusive with tpw_stream_set_target():
- * whichever of the two is called second returns TPW_STREAM_ERR_INVALID_ARG.
+ * stream connects. Mutually exclusive with a target rather than with the
+ * setter: turning autoconnect off while one is set is refused, as is
+ * naming a target while it is off. Clear the target with
+ * tpw_stream_set_target(NULL) to move from either to the other.
  *
  * @param stream The stream to configure, before its format is set.
- * @param enable false to opt out of autoconnect (manual wiring via tpw_stream_link()); true restores the default.
- * @return TPW_STREAM_OK, or TPW_STREAM_ERR_INVALID_ARG (NULL stream, format already set, or a target already set).
+ * @param enable false to opt out of autoconnect (manual wiring via tpw_stream_link()); true puts the stream back under the session manager, and leaves any target already set in place.
+ * @return TPW_STREAM_OK, or TPW_STREAM_ERR_INVALID_ARG for a NULL `stream`, a format already set, or `enable` false while a target is set.
  */
 int tpw_stream_set_autoconnect(tpw_stream_h stream, bool enable);
 
